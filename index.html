@@ -52,21 +52,6 @@
   .stat .k { color: var(--muted); font-size: 13px; }
   .stat .v { font-size: 18px; font-weight: 700; color: var(--accent-d); font-variant-numeric: tabular-nums; }
   .stat .v small { color: var(--muted); font-weight: 400; font-size: 12px; }
-  .row { display: flex; gap: 8px; margin-top: 12px; }
-  .row button {
-    flex: 1; padding: 12px; border: 1px solid var(--line); background: var(--field); color: var(--text);
-    border-radius: 10px; font-size: 15px; touch-action: manipulation;
-  }
-  .row button.good { border-color: var(--accent); color: var(--accent-d); background: #ecfbf0; }
-  .row button.unripe { border-color: var(--warn); color: #c56a00; background: #fff4e3; }
-  .row button.old { border-color: var(--melon); color: #c53052; background: #ffeef1; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
-  th { color: var(--muted); font-weight: 500; }
-  .tag { padding: 1px 7px; border-radius: 6px; font-size: 12px; }
-  .tag.good { background: #e3f7e9; color: var(--accent-d); }
-  .tag.unripe { background: #fff0da; color: #c56a00; }
-  .tag.old { background: #ffe4ea; color: #c53052; }
   .hint { color: var(--muted); font-size: 12px; line-height: 1.6; margin-top: 10px; }
   .linkbtn { background: none; border: none; color: var(--melon); font-size: 13px; padding: 0; }
   .settings { display: flex; gap: 12px; align-items: center; font-size: 13px; color: var(--muted); margin-top: 12px; flex-wrap: wrap; }
@@ -88,6 +73,8 @@
   #advice.good { background: #ecfbf0; border: 1px solid #b6ecc4; color: #1a7a38; }
   #advice.unripe { background: #fff4e3; border: 1px solid #ffe0b0; color: #b26a00; }
   #advice.old { background: #ffeef1; border: 1px solid #ffd0d9; color: #b83052; }
+  #advice.metal { background: #eef4fb; border: 1px solid #c9ddf2; color: #2c5b8f; }
+  #advice.wood { background: #f4f1ec; border: 1px solid #e0d6c6; color: #7a6547; }
   #advice .big { font-size: 17px; font-weight: 700; display: block; margin-bottom: 4px; }
   #advice .why { font-size: 13px; opacity: .85; font-weight: 400; }
   /* 结果弹窗 */
@@ -103,6 +90,8 @@
   .modal-box #modalAdvice.good { background: #ecfbf0; border: 1px solid #b6ecc4; color: #1a7a38; }
   .modal-box #modalAdvice.unripe { background: #fff4e3; border: 1px solid #ffe0b0; color: #b26a00; }
   .modal-box #modalAdvice.old { background: #ffeef1; border: 1px solid #ffd0d9; color: #b83052; }
+  .modal-box #modalAdvice.metal { background: #eef4fb; border: 1px solid #c9ddf2; color: #2c5b8f; }
+  .modal-box #modalAdvice.wood { background: #f4f1ec; border: 1px solid #e0d6c6; color: #7a6547; }
   .modal-box #modalAdvice .big { font-size: 19px; font-weight: 700; display: block; margin-bottom: 5px; }
   .modal-box #modalAdvice .why { font-size: 12.5px; opacity: .85; font-weight: 400; }
   .modal-stats { display: flex; gap: 8px; margin-bottom: 14px; }
@@ -116,7 +105,7 @@
 <body>
   <h1>🍉 敲瓜听声</h1>
   <div class="sub">点按钮录音 → 敲击物体 → 停止后自动分析主频</div>
-  <div class="privacy">🔒 全程在你手机本地分析，只“听”不保存 —— 录音与记录都不上传、不落盘，关掉页面即全部消失。</div>
+  <div class="privacy">🔒 全程在你手机本地分析，只“听”不保存 —— 录音不上传、不落盘、不联网，用完即走。</div>
 
   <div class="card">
     <button id="recBtn">🎤 开始录音</button>
@@ -141,26 +130,9 @@
     <div class="stat"><span class="k">频谱质心 (Centroid)</span><span class="v" id="fCen">— <small>Hz</small></span></div>
     <div class="stat"><span class="k">敲击次数</span><span class="v" id="fHits">— <small>次</small></span></div>
     <div class="stat"><span class="k">敲击时刻</span><span class="v" id="fPeak">— <small>s</small></span></div>
-    <div class="row">
-      <button id="saveUnripe" class="unripe" disabled>标记生瓜</button>
-      <button id="saveGood" class="good" disabled>标记好瓜</button>
-      <button id="saveOld" class="old" disabled>标记老瓜</button>
-    </div>
-    <div class="hint">生瓜清脆(主频高) → 好瓜低沉(中) → 老瓜发闷(主频低)。多敲同一个瓜几次、力度一致更准；每类先标几个已知瓜可自校准分界线。</div>
+    <div class="hint">生瓜清脆(主频高) → 好瓜低沉(中) → 老瓜发闷(主频低)。同一个瓜多敲几次、力度一致，结果更稳。</div>
     <button id="eggBtn" class="egg" hidden>🥥 敲敲你自己的脑袋试试？</button>
     <div id="eggResult"></div>
-  </div>
-
-  <div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <strong style="font-size:15px">历史对比</strong>
-      <button class="linkbtn" id="clearHist">清空</button>
-    </div>
-    <table id="histTable">
-      <thead><tr><th>标记</th><th>主频</th><th>质心</th><th>时间</th></tr></thead>
-      <tbody></tbody>
-    </table>
-    <div class="hint" id="histSummary"></div>
   </div>
 
   <!-- 结果弹窗: 停止分析后自动弹出, 省得下滑 -->
@@ -418,12 +390,12 @@ function analyze(pcm) {
 
   if (headMode) {                 // 🥚 脑袋模式: 不做正经判读, 抖机灵
     headMode = false;
-    ['saveUnripe', 'saveGood', 'saveOld'].forEach(id => $(id).disabled = true);
     $('advice').style.display = 'none';
     showEggVerdict(dominant);
   } else {
-    ['saveUnripe', 'saveGood', 'saveOld'].forEach(id => $(id).disabled = false);
-    showVerdict(dominant);
+    const isMelonRange = dominant >= 90 && dominant <= 210;
+    if (isMelonRange) showVerdict(dominant);   // 只在西瓜范围内给生熟短判读
+    else statusEl.textContent = '';            // 离谱时清空, 交给材质推测
     showAdvice(dominant, decayMs, hits);
     $('eggBtn').hidden = false;    // 正常分析过一次后, 亮出彩蛋
   }
@@ -434,6 +406,9 @@ function analyze(pcm) {
 
 // 综合主频 + 余韵, 给一段"人话建议"(能不能买 + 为什么 + 怎么吃)
 function showAdvice(dom, decayMs, hits) {
+  // 先判断: 主频明显超出西瓜合理范围(90~210Hz)时, 大概率没在敲西瓜 → 给材质倾向推测
+  if (dom < 90 || dom > 210) { showMaterialGuess(dom, decayMs, hits); return; }
+
   let cat, big, tip;
   if (dom < 130) {
     cat = 'old';
@@ -456,12 +431,43 @@ function showAdvice(dom, decayMs, hits) {
   const why = `依据：主频 ${dom.toFixed(0)}Hz（越低越熟）、余韵 ${decayMs.toFixed(0)}ms（越短越熟）。${cross}` +
     (hits >= 2 ? `　共敲到 ${hits} 下，取最响一下分析。` : '');
   const inner = `<span class="big">${big}</span>${tip}<br><span class="why">${why}</span>`;
+  renderResult(cat, inner, dom, decayMs, hits);
+}
+
+// 材质倾向推测(主频离谱=没在敲西瓜时): 主要靠余韵+频率, 措辞不打包票
+function showMaterialGuess(dom, decayMs, hits) {
+  let cat, big, tip;
+  if (decayMs > 250) {                       // 余韵很长 → 金属/玻璃这类硬而脆
+    cat = 'metal';
+    big = '🔔 这不像西瓜…可能是金属 / 玻璃';
+    tip = '余韵拖得很长、声音清越，像叉子、钢管、玻璃杯这类又硬又脆的东西。';
+  } else if (decayMs < 60) {                  // 余韵极短 → 木头/塑料/软物
+    cat = 'wood';
+    big = dom > 210 ? '🪵 这不像西瓜…可能是木头 / 塑料' : '🧸 这不像西瓜…可能是软的东西';
+    tip = dom > 210
+      ? '声音短促发干、余韵很短，像敲木头、桌面、塑料这类硬而不脆的东西。'
+      : '声音低沉、一下就没了，像敲布、软垫或肉这类软材质。';
+  } else if (dom > 210) {                     // 频率高+中等余韵 → 小而硬
+    cat = 'metal';
+    big = '🥄 这不像西瓜…可能是小而硬的东西';
+    tip = '频率偏高，像敲小件的硬物（陶瓷、厚玻璃、小金属件）。';
+  } else {                                    // 频率很低+中等余韵
+    cat = 'wood';
+    big = '📦 这不像西瓜…可能是大件 / 空腔物';
+    tip = '频率很低、闷响，像敲大箱子、桌板或空心的大件。';
+  }
+  const why = `依据：主频 ${dom.toFixed(0)}Hz、余韵 ${decayMs.toFixed(0)}ms —— 已超出西瓜常见范围（约 90~210Hz），所以给个材质推测供参考（仅凭声音判断，不一定准）。` +
+    (hits >= 2 ? `　共敲到 ${hits} 下。` : '');
+  const inner = `<span class="big">${big}</span>${tip}<br><span class="why">${why}</span>`;
+  renderResult(cat, inner, dom, decayMs, hits);
+}
+
+// 统一渲染: 填充页面建议区 + 弹窗
+function renderResult(cat, inner, dom, decayMs, hits) {
   const box = $('advice');
   box.className = cat;
   box.innerHTML = inner;
   box.style.display = 'block';
-
-  // 同步填充并弹出结果弹窗(省得下滑)
   const ma = $('modalAdvice');
   ma.className = cat;
   ma.innerHTML = inner;
@@ -595,28 +601,14 @@ function drawWaveform(pcm, winStart, winLen, peakIdx) {
   waveRAF = requestAnimationFrame(frame);
 }
 
-// 给一句人话判读: 优先用自校准分界线, 否则用学术参考(老<130<好<160<生)
+// 给一句人话判读: 用学术参考区间(老<130<好<160<生)
 function showVerdict(dom) {
-  const arr = loadHist();
-  const avg = t => { const g = arr.filter(r => r.tag === t); return g.length ? g.reduce((s, r) => s + r.dom, 0) / g.length : null; };
-  const ao = avg('old'), ag = avg('good'), au = avg('unripe');
   let txt, color;
-  // 有相邻两类样本 → 用你自己的分界线
-  if (ag != null && (ao != null || au != null)) {
-    const oldGood = ao != null ? (ao + ag) / 2 : null;      // 老|好 分界
-    const goodUnripe = au != null ? (ag + au) / 2 : null;    // 好|生 分界
-    if (oldGood != null && dom < oldGood) { txt = `偏老(低于分界 ${oldGood.toFixed(0)}Hz)`; color = 'var(--melon)'; }
-    else if (goodUnripe != null && dom > goodUnripe) { txt = `偏生(高于分界 ${goodUnripe.toFixed(0)}Hz)`; color = 'var(--warn)'; }
-    else { txt = `好瓜区`; color = 'var(--accent-d)'; }
-    txt = '📊 按你的样本：' + txt;
-  } else {                              // 无足够样本 → 用学术参考
-    if (dom < 130) { txt = '可能偏老(<130Hz)'; color = 'var(--melon)'; }
-    else if (dom <= 160) { txt = '好瓜参考区(130-160Hz)'; color = 'var(--accent-d)'; }
-    else { txt = '可能偏生(>160Hz)'; color = 'var(--warn)'; }
-    txt = '📖 按学术参考：' + txt + '　(每类标几个已知瓜可自校准)';
-  }
+  if (dom < 130) { txt = '可能偏老(<130Hz)'; color = 'var(--melon)'; }
+  else if (dom <= 160) { txt = '好瓜参考区(130-160Hz)'; color = 'var(--accent-d)'; }
+  else { txt = '可能偏生(>160Hz)'; color = 'var(--warn)'; }
   statusEl.style.color = color;
-  statusEl.textContent = txt;
+  statusEl.textContent = '📖 ' + txt;
 }
 
 // ---------- 频谱可视化 ----------
@@ -631,7 +623,7 @@ function drawSpectrum(mag, binHz, minHz, maxHz, dominant) {
   let max = 1e-9;
   for (let i = lo; i <= hi; i++) if (mag[i] > max) max = mag[i];
 
-  // 三类参考带: 老<130 | 好130-160 | 生>160 (学术共识, 仅作起点, 以自校准为准)
+  // 三类参考带: 老<130 | 好130-160 | 生>160 (学术共识, 仅作参考)
   const toX = f => (Math.min(Math.max(f, minHz), maxHz) / binHz - lo) / (hi - lo) * W;
   const bands = [
     { a: minHz, b: 130, c: 'rgba(255,92,122,0.10)', t: '老' },
@@ -674,44 +666,6 @@ function drawSpectrum(mag, binHz, minHz, maxHz, dominant) {
   }
 }
 
-// ---------- 历史样本 (仅内存, 不落盘: 关页面/刷新即消失) ----------
-let melonSamples = [];
-const loadHist = () => melonSamples;
-const saveHist = arr => { melonSamples = arr; };
-
-function addSample(tag) {
-  if (!lastResult) return;
-  const arr = loadHist();
-  arr.unshift({ tag, dom: +lastResult.dominant.toFixed(1), cen: +lastResult.centroid.toFixed(1), decay: +lastResult.decayMs.toFixed(0), hits: lastResult.hits, t: Date.now() });
-  saveHist(arr.slice(0, 50));
-  renderHist();
-}
-$('saveGood').onclick = () => addSample('good');
-$('saveUnripe').onclick = () => addSample('unripe');
-$('saveOld').onclick = () => addSample('old');
-$('clearHist').onclick = () => { if (confirm('清空本次的标记记录？')) { saveHist([]); renderHist(); } };
-
-const tagLabel = { good: '好瓜', unripe: '生瓜', old: '老瓜' };
-function renderHist() {
-  const arr = loadHist();
-  const tb = $('histTable').querySelector('tbody');
-  tb.innerHTML = arr.map(r => {
-    const d = new Date(r.t);
-    const hm = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-    return `<tr><td><span class="tag ${r.tag}">${tagLabel[r.tag] || '?'}</span></td>
-      <td>${r.dom} Hz</td><td>${r.cen} Hz</td><td>${hm}</td></tr>`;
-  }).join('');
-
-  // 统计: 三类主频均值
-  const avg = t => { const g = arr.filter(r => r.tag === t); return g.length ? (g.reduce((s, r) => s + r.dom, 0) / g.length) : null; };
-  const ao = avg('old'), ag = avg('good'), au = avg('unripe');
-  let s = '';
-  if (au != null) s += `生瓜 ${au.toFixed(0)}Hz　`;
-  if (ag != null) s += `好瓜 ${ag.toFixed(0)}Hz　`;
-  if (ao != null) s += `老瓜 ${ao.toFixed(0)}Hz`;
-  $('histSummary').textContent = s;
-}
-renderHist();
 </script>
 </body>
 </html>
