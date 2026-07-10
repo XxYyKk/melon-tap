@@ -90,7 +90,7 @@
     <div id="status"></div>
     <div class="settings">
       分析频段
-      <input id="minHz" type="number" value="30"> ~
+      <input id="minHz" type="number" value="80"> ~
       <input id="maxHz" type="number" value="1200"> Hz
       <span style="margin-left:auto">窗口 <input id="winMs" type="number" value="120"> ms</span>
     </div>
@@ -268,7 +268,11 @@ function stopRec() {
 
 // ---------- 分析：定位敲击峰 → 加窗 → FFT ----------
 function analyze(pcm) {
-  const minHz = +$('minHz').value, maxHz = +$('maxHz').value;
+  // 下限兜底: 敲击的低频冲击(桌面/手/气压)能量常比共振还大, 若从太低处找主频会被低频俘获
+  // (表现为"怎么敲都偏低"), 故强制不低于 60Hz
+  let minHz = +$('minHz').value, maxHz = +$('maxHz').value;
+  if (!(minHz >= 60)) minHz = 60;
+  if (!(maxHz > minHz)) maxHz = 1200;
   const winMs = +$('winMs').value;
 
   // 1. 找能量峰（最响的一下敲击）
