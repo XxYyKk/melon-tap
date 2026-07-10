@@ -85,6 +85,32 @@
   #advice.old { background: #ffeef1; border: 1px solid #ffd0d9; color: #b83052; }
   #advice .big { font-size: 17px; font-weight: 700; display: block; margin-bottom: 4px; }
   #advice .why { font-size: 13px; opacity: .85; font-weight: 400; }
+  /* 结果弹窗 */
+  .modal-mask { position: fixed; inset: 0; background: rgba(30,50,35,0.45); backdrop-filter: blur(3px);
+                display: none; align-items: center; justify-content: center; padding: 20px; z-index: 100; }
+  .modal-mask.show { display: flex; animation: maskIn .2s ease; }
+  @keyframes maskIn { from { opacity: 0; } }
+  .modal-box { background: #fff; border-radius: 18px; padding: 22px 20px 18px; width: 100%; max-width: 400px;
+               position: relative; box-shadow: 0 20px 50px rgba(0,0,0,.25); animation: boxIn .28s cubic-bezier(.2,.9,.3,1.3); }
+  @keyframes boxIn { from { opacity: 0; transform: translateY(20px) scale(.95); } }
+  .modal-x { position: absolute; top: 12px; right: 14px; border: none; background: none; font-size: 18px; color: var(--muted); }
+  .modal-box #modalAdvice { display: block !important; margin: 4px 0 14px; padding: 14px 16px; border-radius: 12px; font-size: 15px; line-height: 1.7; }
+  .modal-box #modalAdvice.good { background: #ecfbf0; border: 1px solid #b6ecc4; color: #1a7a38; }
+  .modal-box #modalAdvice.unripe { background: #fff4e3; border: 1px solid #ffe0b0; color: #b26a00; }
+  .modal-box #modalAdvice.old { background: #ffeef1; border: 1px solid #ffd0d9; color: #b83052; }
+  .modal-box #modalAdvice .big { font-size: 19px; font-weight: 700; display: block; margin-bottom: 5px; }
+  .modal-box #modalAdvice .why { font-size: 12.5px; opacity: .85; font-weight: 400; }
+  .modal-stats { display: flex; gap: 8px; margin-bottom: 14px; }
+  .modal-stats > div { flex: 1; text-align: center; background: var(--field); border-radius: 10px; padding: 10px 4px; }
+  .modal-stats span { display: block; font-size: 19px; font-weight: 700; color: var(--accent-d); font-variant-numeric: tabular-nums; }
+  .modal-stats small { color: var(--muted); font-size: 11px; }
+  .modal-row { display: flex; gap: 8px; }
+  .modal-row button { flex: 1; padding: 13px; border-radius: 10px; font-size: 15px; font-weight: 600; border: 1px solid var(--line); }
+  .modal-row button.good { border-color: var(--accent); color: var(--accent-d); background: #ecfbf0; }
+  .modal-row button.unripe { border-color: var(--warn); color: #c56a00; background: #fff4e3; }
+  .modal-row button.old { border-color: var(--melon); color: #c53052; background: #ffeef1; }
+  .modal-hint { text-align: center; color: var(--muted); font-size: 12px; margin: 10px 0 4px; }
+  .modal-detail { width: 100%; padding: 10px; margin-top: 4px; border: none; background: none; color: var(--accent2); font-size: 14px; }
 </style>
 </head>
 <body>
@@ -134,6 +160,26 @@
       <tbody></tbody>
     </table>
     <div class="hint" id="histSummary"></div>
+  </div>
+
+  <!-- 结果弹窗: 停止分析后自动弹出, 省得下滑 -->
+  <div id="modal" class="modal-mask">
+    <div class="modal-box">
+      <button id="modalClose" class="modal-x">✕</button>
+      <div id="modalAdvice"></div>
+      <div class="modal-stats">
+        <div><span id="mDom">—</span><small>主频 Hz</small></div>
+        <div><span id="mDecay">—</span><small>余韵 ms</small></div>
+        <div><span id="mHits">—</span><small>敲击次数</small></div>
+      </div>
+      <div class="modal-row">
+        <button id="mUnripe" class="unripe">生瓜</button>
+        <button id="mGood" class="good">好瓜</button>
+        <button id="mOld" class="old">老瓜</button>
+      </div>
+      <div class="modal-hint">标记后可自校准你的分界线 · 点下方查看波形/频谱</div>
+      <button id="modalDetail" class="modal-detail">查看详细图表 ↓</button>
+    </div>
   </div>
 
 <script>
@@ -341,17 +387,29 @@ function analyze(pcm) {
     if (rmsAt(ci) < thr) { decayMs = (ci - peakIdx) / sampleRate * 1000; break; }
   }
 
-  // 9. 敲击次数：滑动 RMS 包络上, 越过(全局峰值*0.35)的上升沿且间隔>120ms 记一次
-  let gPeak = 0;
-  for (let ci = 0; ci < pcm.length - rwin; ci += rwin) { const v = rmsAt(ci); if (v > gPeak) gPeak = v; }
-  const hThr = gPeak * 0.35, minGap = sampleRate * 0.12;
-  let hits = 0, lastHit = -1e9, prevV = 0;
-  for (let ci = 0; ci < pcm.length - rwin; ci += rwin) {
-    const v = rmsAt(ci);
-    if (v >= hThr && prevV < hThr && (ci - lastHit) > minGap) { hits++; lastHit = ci; }
-    prevV = v;
+  // 9. 敲击次数：起振检测(onset detection)——数波形里"重新猛地起振"的次数
+  //    物理判据: 新的一下 = 能量包络从"近期低点"猛地跳升(不是余韵的平滑衰减)
+  //    比"固定间隔"稳: 快敲+长余韵重叠也能分开。参数经网格搜索+交叉验证得出。
+  {
+    const ewin = Math.max(1, Math.floor(sampleRate * 0.005));   // 5ms 包络窗
+    const env = [];
+    for (let c = 0; c < pcm.length; c += ewin) {
+      let s = 0; for (let i = c; i < c + ewin && i < pcm.length; i++) s += pcm[i] * pcm[i];
+      env.push(Math.sqrt(s / ewin));
+    }
+    let gPk = 0; for (const v of env) if (v > gPk) gPk = v;
+    var hits = 0;
+    if (gPk > 1e-4) {
+      const floor = gPk * 0.15, gapWin = Math.max(1, Math.floor(60 / 5));  // 60ms 不应期
+      let lastHit = -1e9, recentMin = env[0];
+      for (let k = 1; k < env.length; k++) {
+        const v = env[k];
+        recentMin = Math.min(recentMin * 1.04, v);        // 近期低点缓慢上移
+        if (v >= floor && v > recentMin * 1.5 && (k - lastHit) > gapWin) { hits++; lastHit = k; recentMin = v; }
+      }
+    }
+    if (hits < 1) hits = 1;
   }
-  if (hits < 1) hits = 1;
 
   lastResult = { dominant, centroid, decayMs, hits, peakSec: peakIdx / sampleRate };
   $('fDom').innerHTML = dominant.toFixed(1) + ' <small>Hz</small>';
@@ -400,11 +458,31 @@ function showAdvice(dom, decayMs, hits) {
   else cross = '余韵适中。';
   const why = `依据：主频 ${dom.toFixed(0)}Hz（越低越熟）、余韵 ${decayMs.toFixed(0)}ms（越短越熟）。${cross}` +
     (hits >= 2 ? `　共敲到 ${hits} 下，取最响一下分析。` : '');
+  const inner = `<span class="big">${big}</span>${tip}<br><span class="why">${why}</span>`;
   const box = $('advice');
   box.className = cat;
-  box.innerHTML = `<span class="big">${big}</span>${tip}<br><span class="why">${why}</span>`;
+  box.innerHTML = inner;
   box.style.display = 'block';
+
+  // 同步填充并弹出结果弹窗(省得下滑)
+  const ma = $('modalAdvice');
+  ma.className = cat;
+  ma.innerHTML = inner;
+  $('mDom').textContent = dom.toFixed(0);
+  $('mDecay').textContent = decayMs.toFixed(0);
+  $('mHits').textContent = hits;
+  $('modal').classList.add('show');
 }
+
+// ---------- 结果弹窗控制 ----------
+function closeModal() { $('modal').classList.remove('show'); }
+$('modalClose').onclick = closeModal;
+$('modal').addEventListener('click', e => { if (e.target === $('modal')) closeModal(); });
+$('modalDetail').onclick = () => { closeModal(); $('spectrum').scrollIntoView({ behavior: 'smooth', block: 'center' }); };
+// 弹窗内标记按钮: 复用 addSample, 标记后关弹窗
+$('mUnripe').onclick = () => { addSample('unripe'); closeModal(); };
+$('mGood').onclick = () => { addSample('good'); closeModal(); };
+$('mOld').onclick = () => { addSample('old'); closeModal(); };
 
 // ---------- 🥚 彩蛋: 敲敲自己的脑袋 ----------
 let headMode = false;
