@@ -55,15 +55,16 @@
     flex: 1; padding: 12px; border: 1px solid var(--line); background: var(--field); color: var(--text);
     border-radius: 10px; font-size: 15px; touch-action: manipulation;
   }
-  .row button.ripe { border-color: var(--accent); color: var(--accent-d); background: #ecfbf0; }
+  .row button.good { border-color: var(--accent); color: var(--accent-d); background: #ecfbf0; }
   .row button.unripe { border-color: var(--warn); color: #c56a00; background: #fff4e3; }
+  .row button.old { border-color: var(--melon); color: #c53052; background: #ffeef1; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
   th { color: var(--muted); font-weight: 500; }
   .tag { padding: 1px 7px; border-radius: 6px; font-size: 12px; }
-  .tag.ripe { background: #e3f7e9; color: var(--accent-d); }
+  .tag.good { background: #e3f7e9; color: var(--accent-d); }
   .tag.unripe { background: #fff0da; color: #c56a00; }
-  .tag.unknown { background: #eef2ee; color: var(--muted); }
+  .tag.old { background: #ffe4ea; color: #c53052; }
   .hint { color: var(--muted); font-size: 12px; line-height: 1.6; margin-top: 10px; }
   .linkbtn { background: none; border: none; color: var(--melon); font-size: 13px; padding: 0; }
   .settings { display: flex; gap: 12px; align-items: center; font-size: 13px; color: var(--muted); margin-top: 12px; flex-wrap: wrap; }
@@ -97,10 +98,10 @@
     <div class="stat"><span class="k">敲击时刻</span><span class="v" id="fPeak">— <small>s</small></span></div>
     <div class="row">
       <button id="saveUnripe" class="unripe" disabled>标记生瓜</button>
-      <button id="saveUnknown" disabled>标记未知</button>
-      <button id="saveRipe" class="ripe" disabled>标记熟瓜</button>
+      <button id="saveGood" class="good" disabled>标记好瓜</button>
+      <button id="saveOld" class="old" disabled>标记老瓜</button>
     </div>
-    <div class="hint">敲熟瓜声音低沉 → 主频偏低；生瓜清脆 → 主频偏高。多敲同一个瓜几次取平均更准；敲击点、力度尽量一致。</div>
+    <div class="hint">生瓜清脆(主频高) → 好瓜低沉(中) → 老瓜发闷(主频低)。多敲同一个瓜几次、力度一致更准；每类先标几个已知瓜可自校准分界线。</div>
   </div>
 
   <div class="card">
@@ -151,6 +152,8 @@ let recording = false;
 let chunks = [];        // Float32Array 片段
 let sampleRate = 44100;
 let lastResult = null;
+let liveBuf = null;     // 实时滚动波形缓冲
+let liveRAF = 0;        // requestAnimationFrame id
 
 const $ = id => document.getElementById(id);
 const recBtn = $('recBtn'), levelEl = $('level'), statusEl = $('status');
@@ -171,12 +174,18 @@ async function startRec() {
   sampleRate = audioCtx.sampleRate;
   sourceNode = audioCtx.createMediaStreamSource(stream);
 
+  // 实时滚动缓冲: 显示最近约 1.5 秒
+  liveBuf = new Float32Array(Math.floor(sampleRate * 1.5));
+
   const bufSize = 4096;
   processor = audioCtx.createScriptProcessor(bufSize, 1, 1);
   chunks = [];
   processor.onaudioprocess = e => {
     const data = e.inputBuffer.getChannelData(0);
     chunks.push(new Float32Array(data));
+    // 滚动: 旧数据左移, 新帧追加到尾部(像心电图从右进)
+    liveBuf.copyWithin(0, data.length);
+    liveBuf.set(data, liveBuf.length - data.length);
     let peak = 0;
     for (let i = 0; i < data.length; i++) { const a = Math.abs(data[i]); if (a > peak) peak = a; }
     levelEl.style.width = Math.min(100, peak * 140) + '%';
@@ -188,11 +197,48 @@ async function startRec() {
   recording = true;
   recBtn.textContent = '⏹ 停止并分析';
   recBtn.classList.add('recording');
+  statusEl.style.color = 'var(--accent-d)';
   statusEl.textContent = '录音中… 请敲击物体';
+  liveLoop();   // 启动实时波形动画
+}
+
+// 录音中: 用 rAF 平滑重绘滚动波形(心电图风格)
+function liveLoop() {
+  if (!recording) return;
+  drawLiveWave(liveBuf);
+  liveRAF = requestAnimationFrame(liveLoop);
+}
+function drawLiveWave(buf) {
+  const cv = $('waveform'), dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  if (cv.width !== W * dpr) { cv.width = W * dpr; cv.height = H * dpr; }
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  const mid = H / 2;
+  // 零线
+  ctx.strokeStyle = '#e2ece4'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, mid); ctx.lineTo(W, mid); ctx.stroke();
+  // 波形包络
+  const step = buf.length / W;
+  ctx.strokeStyle = '#ff5c7a'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = 0; x < W; x++) {
+    let lo = 1, hi = -1;
+    const s = Math.floor(x * step), e = Math.min(buf.length, Math.floor((x + 1) * step));
+    for (let i = s; i < e; i++) { if (buf[i] < lo) lo = buf[i]; if (buf[i] > hi) hi = buf[i]; }
+    if (hi < lo) { lo = hi = 0; }
+    ctx.moveTo(x, mid - hi * mid * 0.92);
+    ctx.lineTo(x, mid - lo * mid * 0.92 + 0.5);
+  }
+  ctx.stroke();
+  // 提示: 新声音从右侧进入
+  ctx.fillStyle = 'rgba(125,149,133,0.8)'; ctx.font = '10px sans-serif';
+  ctx.fillText('实时 ▶ 新声音从右侧进入', 6, 12);
 }
 
 function stopRec() {
   recording = false;
+  cancelAnimationFrame(liveRAF);
   recBtn.textContent = '🎤 开始录音';
   recBtn.classList.remove('recording');
   levelEl.style.width = '0%';
@@ -266,78 +312,106 @@ function analyze(pcm) {
   $('fCen').innerHTML = centroid.toFixed(1) + ' <small>Hz</small>';
   $('fPeak').innerHTML = (peakIdx / sampleRate).toFixed(3) + ' <small>s</small>';
   statusEl.textContent = '';
-  ['saveUnripe', 'saveUnknown', 'saveRipe'].forEach(id => $(id).disabled = false);
+  ['saveUnripe', 'saveGood', 'saveOld'].forEach(id => $(id).disabled = false);
   showVerdict(dominant);
 
   drawWaveform(pcm, start, winLen, peakIdx);
   drawSpectrum(mag, binHz, minHz, maxHz, dominant);
 }
 
-// ---------- 波形可视化(时域, 横轴=时间) ----------
+// ---------- 波形可视化(时域, 横轴=时间, 带回放动画) ----------
+let waveRAF = 0;
 function drawWaveform(pcm, winStart, winLen, peakIdx) {
+  cancelAnimationFrame(waveRAF);
   const cv = $('waveform'), dpr = window.devicePixelRatio || 1;
   const W = cv.clientWidth, H = cv.clientHeight;
   cv.width = W * dpr; cv.height = H * dpr;
-  const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
-  ctx.clearRect(0, 0, W, H);
+  const ctx = cv.getContext('2d');
   const mid = H / 2, totalSec = pcm.length / sampleRate;
-
-  // 分析窗口高亮带
-  const wx1 = winStart / pcm.length * W;
-  const wx2 = (winStart + winLen) / pcm.length * W;
-  ctx.fillStyle = 'rgba(53,199,89,0.16)';
-  ctx.fillRect(wx1, 0, wx2 - wx1, H);
-  ctx.fillStyle = 'rgba(31,157,67,0.7)'; ctx.font = '10px sans-serif';
-  ctx.fillText('分析窗口 ' + (winLen / sampleRate * 1000).toFixed(0) + 'ms', wx1 + 3, 12);
-
-  // 零线
-  ctx.strokeStyle = '#e2ece4'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(0, mid); ctx.lineTo(W, mid); ctx.stroke();
-
-  // 波形(按像素列取 min/max 画包络, 抗抽稀失真)
   const step = pcm.length / W;
-  ctx.strokeStyle = '#ff5c7a'; ctx.lineWidth = 1;
-  ctx.beginPath();
+
+  // 预计算每一像素列的 min/max 包络(避免动画每帧重扫)
+  const envLo = new Float32Array(W), envHi = new Float32Array(W);
   for (let x = 0; x < W; x++) {
     let lo = 1, hi = -1;
     const s = Math.floor(x * step), e = Math.min(pcm.length, Math.floor((x + 1) * step));
     for (let i = s; i < e; i++) { if (pcm[i] < lo) lo = pcm[i]; if (pcm[i] > hi) hi = pcm[i]; }
-    ctx.moveTo(x, mid - hi * mid * 0.92);
-    ctx.lineTo(x, mid - lo * mid * 0.92);
+    if (hi < lo) { lo = hi = 0; }
+    envLo[x] = lo; envHi[x] = hi;
   }
-  ctx.stroke();
-
-  // 敲击时刻竖线
+  const wx1 = winStart / pcm.length * W, wx2 = (winStart + winLen) / pcm.length * W;
   const px = peakIdx / pcm.length * W;
-  ctx.strokeStyle = '#1f9d43'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, H); ctx.stroke();
 
-  // 时间刻度(秒)
-  ctx.fillStyle = '#7d9585'; ctx.font = '10px sans-serif';
-  const nTicks = 4;
-  for (let k = 0; k <= nTicks; k++) {
-    const x = k / nTicks * W;
-    const t = (k / nTicks * totalSec);
-    ctx.fillText(t.toFixed(2) + 's', Math.min(x + 2, W - 26), H - 3);
+  const DUR = 900;                 // 回放时长 ms
+  const t0 = performance.now();
+  function frame(now) {
+    const prog = Math.min(1, (now - t0) / DUR);
+    const cursorX = prog * W;      // 游标位置
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+
+    // 分析窗口带(已扫过的部分才显示, 跟着游标揭开)
+    if (cursorX > wx1) {
+      ctx.fillStyle = 'rgba(53,199,89,0.16)';
+      ctx.fillRect(wx1, 0, Math.min(cursorX, wx2) - wx1, H);
+    }
+    // 零线
+    ctx.strokeStyle = '#e2ece4'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, mid); ctx.lineTo(W, mid); ctx.stroke();
+
+    // 波形(只画到游标处)
+    ctx.strokeStyle = '#ff5c7a'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = 0; x < cursorX; x++) {
+      ctx.moveTo(x, mid - envHi[x] * mid * 0.92);
+      ctx.lineTo(x, mid - envLo[x] * mid * 0.92 + 0.5);
+    }
+    ctx.stroke();
+
+    // 游标
+    if (prog < 1) {
+      ctx.strokeStyle = 'rgba(31,157,67,0.9)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(cursorX, 0); ctx.lineTo(cursorX, H); ctx.stroke();
+    }
+    // 敲击时刻线(游标扫过后出现)
+    if (cursorX > px) {
+      ctx.strokeStyle = '#1f9d43'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, H); ctx.stroke();
+    }
+    // 标签 + 时间刻度(播放结束后显示, 避免动画中太乱)
+    if (prog >= 1) {
+      ctx.fillStyle = 'rgba(31,157,67,0.7)'; ctx.font = '10px sans-serif';
+      ctx.fillText('分析窗口 ' + (winLen / sampleRate * 1000).toFixed(0) + 'ms', wx1 + 3, 12);
+      ctx.fillStyle = '#7d9585';
+      for (let k = 0; k <= 4; k++) {
+        const x = k / 4 * W, t = k / 4 * totalSec;
+        ctx.fillText(t.toFixed(2) + 's', Math.min(x + 2, W - 26), H - 3);
+      }
+    }
+    if (prog < 1) waveRAF = requestAnimationFrame(frame);
   }
+  waveRAF = requestAnimationFrame(frame);
 }
 
-// 给一句人话判读: 优先用自校准分界线, 否则用学术参考 130-160Hz
+// 给一句人话判读: 优先用自校准分界线, 否则用学术参考(老<130<好<160<生)
 function showVerdict(dom) {
   const arr = loadHist();
   const avg = t => { const g = arr.filter(r => r.tag === t); return g.length ? g.reduce((s, r) => s + r.dom, 0) / g.length : null; };
-  const ar = avg('ripe'), au = avg('unripe');
+  const ao = avg('old'), ag = avg('good'), au = avg('unripe');
   let txt, color;
-  if (ar && au) {                       // 有自校准样本 → 用你自己的分界
-    const mid = (ar + au) / 2;
-    if (dom <= mid) { txt = `偏熟(低于你的分界 ${mid.toFixed(0)}Hz)`; color = 'var(--accent)'; }
-    else { txt = `偏生(高于你的分界 ${mid.toFixed(0)}Hz)`; color = 'var(--warn)'; }
+  // 有相邻两类样本 → 用你自己的分界线
+  if (ag != null && (ao != null || au != null)) {
+    const oldGood = ao != null ? (ao + ag) / 2 : null;      // 老|好 分界
+    const goodUnripe = au != null ? (ag + au) / 2 : null;    // 好|生 分界
+    if (oldGood != null && dom < oldGood) { txt = `偏老(低于分界 ${oldGood.toFixed(0)}Hz)`; color = 'var(--melon)'; }
+    else if (goodUnripe != null && dom > goodUnripe) { txt = `偏生(高于分界 ${goodUnripe.toFixed(0)}Hz)`; color = 'var(--warn)'; }
+    else { txt = `好瓜区`; color = 'var(--accent-d)'; }
     txt = '📊 按你的样本：' + txt;
-  } else {                              // 无样本 → 用学术参考带
-    if (dom < 130) { txt = '可能过熟(<130Hz)'; color = 'var(--warn)'; }
-    else if (dom <= 160) { txt = '落在熟瓜参考区(130-160Hz)'; color = 'var(--accent)'; }
+  } else {                              // 无足够样本 → 用学术参考
+    if (dom < 130) { txt = '可能偏老(<130Hz)'; color = 'var(--melon)'; }
+    else if (dom <= 160) { txt = '好瓜参考区(130-160Hz)'; color = 'var(--accent-d)'; }
     else { txt = '可能偏生(>160Hz)'; color = 'var(--warn)'; }
-    txt = '📖 按学术参考：' + txt + '　(建议标记几个已知瓜自校准)';
+    txt = '📖 按学术参考：' + txt + '　(每类标几个已知瓜可自校准)';
   }
   statusEl.style.color = color;
   statusEl.textContent = txt;
@@ -355,15 +429,20 @@ function drawSpectrum(mag, binHz, minHz, maxHz, dominant) {
   let max = 1e-9;
   for (let i = lo; i <= hi; i++) if (mag[i] > max) max = mag[i];
 
-  // 熟瓜参考带 130-160Hz(学术共识, 仅作起点参考, 以自校准为准)
-  const RIPE_LO = 130, RIPE_HI = 160;
-  if (RIPE_HI > minHz && RIPE_LO < maxHz) {
-    const bx1 = (Math.max(RIPE_LO, minHz) / binHz - lo) / (hi - lo) * W;
-    const bx2 = (Math.min(RIPE_HI, maxHz) / binHz - lo) / (hi - lo) * W;
-    ctx.fillStyle = 'rgba(53,199,89,0.14)';
-    ctx.fillRect(bx1, 0, bx2 - bx1, H);
-    ctx.fillStyle = 'rgba(31,157,67,0.85)'; ctx.font = '10px sans-serif';
-    ctx.fillText('熟瓜参考区', bx1 + 2, H - 16);
+  // 三类参考带: 老<130 | 好130-160 | 生>160 (学术共识, 仅作起点, 以自校准为准)
+  const toX = f => (Math.min(Math.max(f, minHz), maxHz) / binHz - lo) / (hi - lo) * W;
+  const bands = [
+    { a: minHz, b: 130, c: 'rgba(255,92,122,0.10)', t: '老' },
+    { a: 130, b: 160, c: 'rgba(53,199,89,0.14)', t: '好' },
+    { a: 160, b: maxHz, c: 'rgba(255,149,0,0.10)', t: '生' },
+  ];
+  ctx.font = '10px sans-serif';
+  for (const bd of bands) {
+    if (bd.b <= minHz || bd.a >= maxHz) continue;
+    const x1 = toX(bd.a), x2 = toX(bd.b);
+    ctx.fillStyle = bd.c; ctx.fillRect(x1, 0, x2 - x1, H);
+    ctx.fillStyle = 'rgba(90,110,95,0.75)';
+    ctx.fillText(bd.t, (x1 + x2) / 2 - 3, H - 16);
   }
 
   // 频谱曲线
@@ -405,29 +484,29 @@ function addSample(tag) {
   saveHist(arr.slice(0, 50));
   renderHist();
 }
-$('saveRipe').onclick = () => addSample('ripe');
+$('saveGood').onclick = () => addSample('good');
 $('saveUnripe').onclick = () => addSample('unripe');
-$('saveUnknown').onclick = () => addSample('unknown');
+$('saveOld').onclick = () => addSample('old');
 $('clearHist').onclick = () => { if (confirm('清空所有历史样本？')) { saveHist([]); renderHist(); } };
 
-const tagLabel = { ripe: '熟瓜', unripe: '生瓜', unknown: '未知' };
+const tagLabel = { good: '好瓜', unripe: '生瓜', old: '老瓜' };
 function renderHist() {
   const arr = loadHist();
   const tb = $('histTable').querySelector('tbody');
   tb.innerHTML = arr.map(r => {
     const d = new Date(r.t);
     const hm = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-    return `<tr><td><span class="tag ${r.tag}">${tagLabel[r.tag]}</span></td>
+    return `<tr><td><span class="tag ${r.tag}">${tagLabel[r.tag] || '?'}</span></td>
       <td>${r.dom} Hz</td><td>${r.cen} Hz</td><td>${hm}</td></tr>`;
   }).join('');
 
-  // 简单统计：生/熟主频均值
+  // 统计: 三类主频均值
   const avg = t => { const g = arr.filter(r => r.tag === t); return g.length ? (g.reduce((s, r) => s + r.dom, 0) / g.length) : null; };
-  const ar = avg('ripe'), au = avg('unripe');
+  const ao = avg('old'), ag = avg('good'), au = avg('unripe');
   let s = '';
-  if (ar) s += `熟瓜主频均值 ${ar.toFixed(0)}Hz　`;
-  if (au) s += `生瓜主频均值 ${au.toFixed(0)}Hz`;
-  if (ar && au) s += `　→ 分界约 ${((ar + au) / 2).toFixed(0)}Hz`;
+  if (au != null) s += `生瓜 ${au.toFixed(0)}Hz　`;
+  if (ag != null) s += `好瓜 ${ag.toFixed(0)}Hz　`;
+  if (ao != null) s += `老瓜 ${ao.toFixed(0)}Hz`;
   $('histSummary').textContent = s;
 }
 renderHist();
