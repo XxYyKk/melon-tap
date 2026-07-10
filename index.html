@@ -70,6 +70,14 @@
   .settings { display: flex; gap: 12px; align-items: center; font-size: 13px; color: var(--muted); margin-top: 12px; flex-wrap: wrap; }
   .settings input { width: 64px; background: var(--field); border: 1px solid var(--line); color: var(--text); border-radius: 6px; padding: 4px 6px; font-size: 13px; }
   #status { font-size: 13px; color: var(--warn); min-height: 18px; margin-top: 8px; font-weight: 500; }
+  .egg { width: 100%; margin-top: 12px; padding: 10px; border: 1px dashed var(--melon);
+         background: transparent; color: var(--melon); border-radius: 10px; font-size: 14px;
+         opacity: .85; touch-action: manipulation; animation: eggIn .4s ease; }
+  .egg:active { opacity: 1; background: #fff0f3; }
+  @keyframes eggIn { from { opacity: 0; transform: translateY(-4px); } }
+  #eggResult { margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: #fff0f3;
+               border: 1px solid #ffd5de; color: #c53052; font-size: 14px; line-height: 1.6; display: none; }
+  #eggResult b { color: #a01f42; }
 </style>
 </head>
 <body>
@@ -102,6 +110,8 @@
       <button id="saveOld" class="old" disabled>标记老瓜</button>
     </div>
     <div class="hint">生瓜清脆(主频高) → 好瓜低沉(中) → 老瓜发闷(主频低)。多敲同一个瓜几次、力度一致更准；每类先标几个已知瓜可自校准分界线。</div>
+    <button id="eggBtn" class="egg" hidden>🥥 敲敲你自己的脑袋试试？</button>
+    <div id="eggResult"></div>
   </div>
 
   <div class="card">
@@ -312,11 +322,60 @@ function analyze(pcm) {
   $('fCen').innerHTML = centroid.toFixed(1) + ' <small>Hz</small>';
   $('fPeak').innerHTML = (peakIdx / sampleRate).toFixed(3) + ' <small>s</small>';
   statusEl.textContent = '';
-  ['saveUnripe', 'saveGood', 'saveOld'].forEach(id => $(id).disabled = false);
-  showVerdict(dominant);
+
+  if (headMode) {                 // 🥚 脑袋模式: 不做正经判读, 抖机灵
+    headMode = false;
+    ['saveUnripe', 'saveGood', 'saveOld'].forEach(id => $(id).disabled = true);
+    showEggVerdict(dominant);
+  } else {
+    ['saveUnripe', 'saveGood', 'saveOld'].forEach(id => $(id).disabled = false);
+    showVerdict(dominant);
+    $('eggBtn').hidden = false;    // 正常分析过一次后, 亮出彩蛋
+  }
 
   drawWaveform(pcm, start, winLen, peakIdx);
   drawSpectrum(mag, binHz, minHz, maxHz, dominant);
+}
+
+// ---------- 🥚 彩蛋: 敲敲自己的脑袋 ----------
+let headMode = false;
+$('eggBtn').onclick = () => {
+  headMode = true;
+  $('eggResult').style.display = 'none';
+  startRec();
+  statusEl.style.color = 'var(--melon)';
+  statusEl.textContent = '🥥 脑袋模式：轻轻敲两下你的天灵盖…（悠着点）';
+};
+
+function showEggVerdict(dom) {
+  const eggs = {
+    old: [   // 主频偏低
+      '主频偏低，声音浑厚——恭喜，你这颗是<b>沙瓤老瓜</b>，人生阅历拉满，就是别熬夜了。',
+      '<b>老瓜认证</b> 🧓：低频饱满，稳重可靠。建议配一杯枸杞茶食用。',
+      '嘭～嘭～ 这么低沉，<b>妥妥老瓜</b>，成熟稳重型选手，公司离不开你。',
+    ],
+    good: [  // 主频居中
+      '主频刚刚好，清甜多汁——你是颗<b>黄金好瓜</b>！🍉 状态在线，宜出门约饭。',
+      '<b>好瓜就是你</b>：不生不老，甜度爆表，今天运气应该不错。',
+      '完美落在好瓜区！<b>熟得恰到好处</b>，建议立刻奖励自己一块西瓜。',
+    ],
+    unripe: [ // 主频偏高
+      '主频偏高，清脆响亮——你还是颗<b>青涩生瓜</b> 🌱，前途无量，再练两年。',
+      '<b>生瓜预警</b>：脆生生的，年轻就是资本，多睡觉少改 bug。',
+      '哐哐脆响，<b>标准生瓜</b>，元气满满的小年轻，未来可期！',
+    ],
+  };
+  let cat;
+  if (dom < 130) cat = 'old';
+  else if (dom <= 160) cat = 'good';
+  else cat = 'unripe';
+  const list = eggs[cat];
+  const pick = list[Math.floor(Math.random() * list.length)];
+  const box = $('eggResult');
+  box.innerHTML = `🥥 <b>脑袋主频 ${dom.toFixed(0)}Hz</b><br>${pick}
+    <br><span style="font-size:12px;opacity:.7">（纯属娱乐，脑袋不是西瓜，别太当真 😜）</span>`;
+  box.style.display = 'block';
+  statusEl.textContent = '';
 }
 
 // ---------- 波形可视化(时域, 横轴=时间, 带回放动画) ----------
