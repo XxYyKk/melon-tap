@@ -101,7 +101,8 @@
   .modal-stats small { color: var(--muted); font-size: 11px; }
   .modal-detail { width: 100%; padding: 10px; margin-top: 4px; border: none; background: none; color: var(--accent2); font-size: 14px; }
   .ad-slot { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 10px 12px;
-             border: 1px dashed #d7dee6; border-radius: 10px; background: #f7f9fb; font-size: 13px; }
+             border: 1px dashed #d7dee6; border-radius: 10px; background: #f7f9fb; font-size: 13px; cursor: pointer; }
+  .ad-slot:active { background: #eef2f6; }
   .ad-tag { flex-shrink: 0; font-size: 10px; color: #9aa7b4; border: 1px solid #d7dee6; border-radius: 4px; padding: 0 4px; }
   .ad-body { flex: 1; color: #5a6b7d; }
   .ad-btn { flex-shrink: 0; padding: 5px 12px; border-radius: 8px; font-size: 13px; text-decoration: none;
@@ -154,17 +155,16 @@
         <div><span id="mHits">—</span><small>敲击次数</small></div>
       </div>
       <button id="modalDetail" class="modal-detail">查看详细图表 ↓</button>
-      <!-- 广告位: 弹窗底部一条(京东联盟推广链接, 点击跳转京东) -->
-      <div class="ad-slot">
+      <!-- 广告位: 整条可点(默认去"买个瓜"), "领个券"为独立小按钮 -->
+      <div class="ad-slot" role="link" tabindex="0" onclick="window.open(this.dataset.href,'_blank','noopener')" data-href="https://union-click.jd.com/jdc?e=618%7Cpc%7C&p=JF8BATQJK1olXwMAV1hZDU4WC18IGlgWXA8DVFpYCkMVBV9MRANLAjZbERscSkAJHTdNTwcKBlMdBgABFksWAGwJEloVWQMAXFxbFxJSXzI4XFhyWV0YNi04VTFJXjt0TF9hNVN6ElJROEonA24JG10UXAcKVW5tCEwnQgEIHlwdXQYKXW5cOEsRCm0OGloTXwQGXVptD0seMzVBUxlUDVRWZG5tC3sQA2YcHSlUDxIEJm5tCHsUM28JG1oQWg4LV1tUFEsXB24KGUcVWw8AUl9cDkkWA2kMK1kUXAILZG6DhftgAW9rcilFXQBRHQE9cA5N3eK4CidxWQYDUU9tcR93ZC1vSR9nKFZ1MyknfDcVBi1_fCxvGH9KEhc9ZklkfG5PZFtQBX1GKBZeaDtPXF8NK1sWXgYLZA">
         <span class="ad-tag">广告</span>
-        <span class="ad-body">🍉 懒得敲了？直接</span>
-        <a class="ad-btn coupon" href="https://union-click.jd.com/jdc?e=618%7Cpc%7C&p=JF8BAdMJK1olXwMAV1hZDU4WC18IGlgWXA8DVFpYCkMVBV9MRANLAjZbERscSkAJHTRQRA1CCVkdDwtCWhVLHTdNTwcKBENeCVAfUg8bejtofBlyD0JwIQ4qbzxtQywAZjBiOnF4EScVTgJ3bW17ZFpSIgZHDCUZdAMUYx9QRExVUXJ7JD0qUSxLdwZ8fS9mNll2CwwFbC93RRhARit3FHpENxUtWyxNYyZ_U1tjPwdiFCk_VTJ1Sh9ObCluLmVLJwkpVzt0egx_RSxKNWN2HD41Wigfew98SQF2NFBgLz0-Sj9uezx8Qg5RKVl6DG5bVjFgSi92BT5jR28BCx4lSAljdg94F1clXDYCVV9dDkoWAmcJK2sVWjZDOl5YD0MXA2cBK1olXQALVlhcCU0VAWgKEmsSXQ8yDhcVSgpHUTs4K2sWbQECXUpbegpFF2l6K2sVXjYBZF5cCEoSBGcBGF4cQQYCUF9fClcXBWYKHVoUWwQDVFhZOEkWAmsBK2vL0LZmJiUaej5NdTgJfTpVIGVGitPtGTdgAW0AGkolJFJiMxw6Wg9ldj9_fCxvHUUKKTUqbzxtRhZAXRJ1MwRxK18ad0tSWxRMZxMWPXZaC25YOEsUAG8BKw" target="_blank" rel="noopener nofollow sponsored">领个券 🎫</a>
-        <a class="ad-btn" href="https://union-click.jd.com/jdc?e=618%7Cpc%7C&p=JF8BATQJK1olXwMAV1hZDU4WC18IGlgWXA8DVFpYCkMVBV9MRANLAjZbERscSkAJHTdNTwcKBlMdBgABFksWAGwJEloVWQMAXFxbFxJSXzI4XFhyWV0YNi04VTFJXjt0TF9hNVN6ElJROEonA24JG10UXAcKVW5tCEwnQgEIHlwdXQYKXW5cOEsRCm0OGloTXwQGXVptD0seMzVBUxlUDVRWZG5tC3sQA2YcHSlUDxIEJm5tCHsUM28JG1oQWg4LV1tUFEsXB24KGUcVWw8AUl9cDkkWA2kMK1kUXAILZG6DhftgAW9rcilFXQBRHQE9cA5N3eK4CidxWQYDUU9tcR93ZC1vSR9nKFZ1MyknfDcVBi1_fCxvGH9KEhc9ZklkfG5PZFtQBX1GKBZeaDtPXF8NK1sWXgYLZA" target="_blank" rel="noopener nofollow sponsored">买个瓜 🛒</a>
+        <span class="ad-body">🍉 懒得敲了？直接买个瓜 🛒</span>
+        <a class="ad-btn coupon" href="https://union-click.jd.com/jdc?e=618%7Cpc%7C&p=JF8BAdMJK1olXwMAV1hZDU4WC18IGlgWXA8DVFpYCkMVBV9MRANLAjZbERscSkAJHTRQRA1CCVkdDwtCWhVLHTdNTwcKBENeCVAfUg8bejtofBlyD0JwIQ4qbzxtQywAZjBiOnF4EScVTgJ3bW17ZFpSIgZHDCUZdAMUYx9QRExVUXJ7JD0qUSxLdwZ8fS9mNll2CwwFbC93RRhARit3FHpENxUtWyxNYyZ_U1tjPwdiFCk_VTJ1Sh9ObCluLmVLJwkpVzt0egx_RSxKNWN2HD41Wigfew98SQF2NFBgLz0-Sj9uezx8Qg5RKVl6DG5bVjFgSi92BT5jR28BCx4lSAljdg94F1clXDYCVV9dDkoWAmcJK2sVWjZDOl5YD0MXA2cBK1olXQALVlhcCU0VAWgKEmsSXQ8yDhcVSgpHUTs4K2sWbQECXUpbegpFF2l6K2sVXjYBZF5cCEoSBGcBGF4cQQYCUF9fClcXBWYKHVoUWwQDVFhZOEkWAmsBK2vL0LZmJiUaej5NdTgJfTpVIGVGitPtGTdgAW0AGkolJFJiMxw6Wg9ldj9_fCxvHUUKKTUqbzxtRhZAXRJ1MwRxK18ad0tSWxRMZxMWPXZaC25YOEsUAG8BKw" target="_blank" rel="noopener nofollow sponsored" onclick="event.stopPropagation()">领个券 🎫</a>
       </div>
     </div>
   </div>
 
-  <div class="ver">🍉 AI 选瓜 · v1.3 · <span id="verHash">1f4f183</span> · 2026-07-11</div>
+  <div class="ver">🍉 AI 选瓜 · v1.3 · <span id="verHash">dev</span> · 2026-07-11</div>
 
 <script>
 // ---------- 迭代 Cooley-Tukey FFT (原地, 输入长度须为 2 的幂) ----------
