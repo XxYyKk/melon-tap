@@ -25,7 +25,9 @@
     -webkit-font-smoothing: antialiased;
   }
   h1 { font-size: 21px; margin: 8px 0 4px; }
-  .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+  .privacy { color: var(--accent-d); font-size: 12px; line-height: 1.5; margin-bottom: 16px;
+             background: #ecfbf0; border: 1px solid #cdeed6; border-radius: 10px; padding: 8px 10px; }
   .card { background: #fff; border-radius: 16px; padding: 16px; margin-bottom: 14px;
           box-shadow: 0 6px 20px rgba(53,199,89,0.08); }
   #recBtn {
@@ -104,18 +106,14 @@
   .modal-stats > div { flex: 1; text-align: center; background: var(--field); border-radius: 10px; padding: 10px 4px; }
   .modal-stats span { display: block; font-size: 19px; font-weight: 700; color: var(--accent-d); font-variant-numeric: tabular-nums; }
   .modal-stats small { color: var(--muted); font-size: 11px; }
-  .modal-row { display: flex; gap: 8px; }
-  .modal-row button { flex: 1; padding: 13px; border-radius: 10px; font-size: 15px; font-weight: 600; border: 1px solid var(--line); }
-  .modal-row button.good { border-color: var(--accent); color: var(--accent-d); background: #ecfbf0; }
-  .modal-row button.unripe { border-color: var(--warn); color: #c56a00; background: #fff4e3; }
-  .modal-row button.old { border-color: var(--melon); color: #c53052; background: #ffeef1; }
-  .modal-hint { text-align: center; color: var(--muted); font-size: 12px; margin: 10px 0 4px; }
+  .modal-detail { width: 100%; padding: 10px; margin-top: 4px; border: none; background: none; color: var(--accent2); font-size: 14px; }
   .modal-detail { width: 100%; padding: 10px; margin-top: 4px; border: none; background: none; color: var(--accent2); font-size: 14px; }
 </style>
 </head>
 <body>
   <h1>🍉 敲瓜听声</h1>
   <div class="sub">点按钮录音 → 敲击物体 → 停止后自动分析主频</div>
+  <div class="privacy">🔒 全程在你手机本地分析，只“听”不保存 —— 录音与记录都不上传、不落盘，关掉页面即全部消失。</div>
 
   <div class="card">
     <button id="recBtn">🎤 开始录音</button>
@@ -172,12 +170,6 @@
         <div><span id="mDecay">—</span><small>余韵 ms</small></div>
         <div><span id="mHits">—</span><small>敲击次数</small></div>
       </div>
-      <div class="modal-row">
-        <button id="mUnripe" class="unripe">生瓜</button>
-        <button id="mGood" class="good">好瓜</button>
-        <button id="mOld" class="old">老瓜</button>
-      </div>
-      <div class="modal-hint">标记后可自校准你的分界线 · 点下方查看波形/频谱</div>
       <button id="modalDetail" class="modal-detail">查看详细图表 ↓</button>
     </div>
   </div>
@@ -479,10 +471,6 @@ function closeModal() { $('modal').classList.remove('show'); }
 $('modalClose').onclick = closeModal;
 $('modal').addEventListener('click', e => { if (e.target === $('modal')) closeModal(); });
 $('modalDetail').onclick = () => { closeModal(); $('spectrum').scrollIntoView({ behavior: 'smooth', block: 'center' }); };
-// 弹窗内标记按钮: 复用 addSample, 标记后关弹窗
-$('mUnripe').onclick = () => { addSample('unripe'); closeModal(); };
-$('mGood').onclick = () => { addSample('good'); closeModal(); };
-$('mOld').onclick = () => { addSample('old'); closeModal(); };
 
 // ---------- 🥚 彩蛋: 敲敲自己的脑袋 ----------
 let headMode = false;
@@ -679,10 +667,10 @@ function drawSpectrum(mag, binHz, minHz, maxHz, dominant) {
   }
 }
 
-// ---------- 历史样本 (localStorage) ----------
-const KEY = 'melon_samples';
-const loadHist = () => JSON.parse(localStorage.getItem(KEY) || '[]');
-const saveHist = arr => localStorage.setItem(KEY, JSON.stringify(arr));
+// ---------- 历史样本 (仅内存, 不落盘: 关页面/刷新即消失) ----------
+let melonSamples = [];
+const loadHist = () => melonSamples;
+const saveHist = arr => { melonSamples = arr; };
 
 function addSample(tag) {
   if (!lastResult) return;
@@ -694,7 +682,7 @@ function addSample(tag) {
 $('saveGood').onclick = () => addSample('good');
 $('saveUnripe').onclick = () => addSample('unripe');
 $('saveOld').onclick = () => addSample('old');
-$('clearHist').onclick = () => { if (confirm('清空所有历史样本？')) { saveHist([]); renderHist(); } };
+$('clearHist').onclick = () => { if (confirm('清空本次的标记记录？')) { saveHist([]); renderHist(); } };
 
 const tagLabel = { good: '好瓜', unripe: '生瓜', old: '老瓜' };
 function renderHist() {
