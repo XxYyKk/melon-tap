@@ -100,7 +100,12 @@
   .modal-stats span { display: block; font-size: 19px; font-weight: 700; color: var(--accent-d); font-variant-numeric: tabular-nums; }
   .modal-stats small { color: var(--muted); font-size: 11px; }
   .modal-detail { width: 100%; padding: 10px; margin-top: 4px; border: none; background: none; color: var(--accent2); font-size: 14px; }
-  .modal-detail { width: 100%; padding: 10px; margin-top: 4px; border: none; background: none; color: var(--accent2); font-size: 14px; }
+  .ad-slot { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 10px 12px;
+             border: 1px dashed #d7dee6; border-radius: 10px; background: #f7f9fb; text-decoration: none;
+             color: #5a6b7d; font-size: 13px; }
+  .ad-slot:active { background: #eef2f6; }
+  .ad-tag { flex-shrink: 0; font-size: 10px; color: #9aa7b4; border: 1px solid #d7dee6; border-radius: 4px; padding: 0 4px; }
+  .ad-body { flex: 1; }
 </style>
 </head>
 <body>
@@ -147,10 +152,15 @@
         <div><span id="mHits">—</span><small>敲击次数</small></div>
       </div>
       <button id="modalDetail" class="modal-detail">查看详细图表 ↓</button>
+      <!-- 广告位: 弹窗底部一条。占位内容, 拿到真广告代码后替换 #adSlot 内部即可 -->
+      <a id="adSlot" class="ad-slot" href="#" target="_blank" rel="noopener nofollow">
+        <span class="ad-tag">广告</span>
+        <span class="ad-body">🍉 想吃现摘好瓜？点这里挑一个 →</span>
+      </a>
     </div>
   </div>
 
-  <div class="ver">🍉 敲瓜听声 · v1.1 · <span id="verHash">2631d28</span> · 2026-07-10</div>
+  <div class="ver">🍉 敲瓜听声 · v1.2 · <span id="verHash">dev</span> · 2026-07-10</div>
 
 <script>
 // ---------- 迭代 Cooley-Tukey FFT (原地, 输入长度须为 2 的幂) ----------
