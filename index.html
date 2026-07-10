@@ -28,6 +28,7 @@
   .sub { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
   .privacy { color: var(--accent-d); font-size: 12px; line-height: 1.5; margin-bottom: 16px;
              background: #ecfbf0; border: 1px solid #cdeed6; border-radius: 10px; padding: 8px 10px; }
+  .ver { text-align: center; color: var(--muted); font-size: 11px; margin: 18px 0 8px; opacity: .7; font-variant-numeric: tabular-nums; }
   .card { background: #fff; border-radius: 16px; padding: 16px; margin-bottom: 14px;
           box-shadow: 0 6px 20px rgba(53,199,89,0.08); }
   #recBtn {
@@ -148,6 +149,8 @@
       <button id="modalDetail" class="modal-detail">查看详细图表 ↓</button>
     </div>
   </div>
+
+  <div class="ver">🍉 敲瓜听声 · v1.1 · <span id="verHash">dev</span> · 2026-07-10</div>
 
 <script>
 // ---------- 迭代 Cooley-Tukey FFT (原地, 输入长度须为 2 的幂) ----------
