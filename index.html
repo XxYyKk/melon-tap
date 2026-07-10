@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>敲瓜听声 · 频率分析</title>
+<title>AI 选瓜 · 敲一敲听生熟</title>
 <style>
   :root {
     --accent: #35c759;      /* 西瓜绿 */
@@ -111,9 +111,9 @@
 </style>
 </head>
 <body>
-  <h1>🍉 敲瓜听声</h1>
+  <h1>🍉 AI 选瓜</h1>
   <div class="sub">点按钮录音 → 敲击物体 → 停止后自动分析主频</div>
-  <div class="privacy">🔒 录音与分析全程在你手机本地完成，不上传、不落盘。（页面底部广告为京东推广链接，点击后会跳转京东。）</div>
+  <div class="privacy">🔒 录音与分析全程在你手机本地完成，不上传、不落盘。</div>
 
   <div class="card">
     <button id="recBtn">🎤 开始录音</button>
@@ -157,14 +157,14 @@
       <!-- 广告位: 弹窗底部一条(京东联盟推广链接, 点击跳转京东) -->
       <div class="ad-slot">
         <span class="ad-tag">广告</span>
-        <span class="ad-body">🍉 好瓜带回家</span>
-        <a class="ad-btn coupon" href="https://union-click.jd.com/jdc?e=618%7Cpc%7C&p=JF8BAdMJK1olXwMAV1hZDU4WC18IGlgWXA8DVFpYCkMVBV9MRANLAjZbERscSkAJHTRQRA1CCVkdDwtCWhVLHTdNTwcKBENeCVAfUg8bejtofBlyD0JwIQ4qbzxtQywAZjBiOnF4EScVTgJ3bW17ZFpSIgZHDCUZdAMUYx9QRExVUXJ7JD0qUSxLdwZ8fS9mNll2CwwFbC93RRhARit3FHpENxUtWyxNYyZ_U1tjPwdiFCk_VTJ1Sh9ObCluLmVLJwkpVzt0egx_RSxKNWN2HD41Wigfew98SQF2NFBgLz0-Sj9uezx8Qg5RKVl6DG5bVjFgSi92BT5jR28BCx4lSAljdg94F1clXDYCVV9dDkoWAmcJK2sVWjZDOl5YD0MXA2cBK1olXQALVlhcCU0VAWgKEmsSXQ8yDhcVSgpHUTs4K2sWbQECXUpbegpFF2l6K2sVXjYBZF5cCEoSBGcBGF4cQQYCUF9fClcXBWYKHVoUWwQDVFhZOEkWAmsBK2vL0LZmJiUaej5NdTgJfTpVIGVGitPtGTdgAW0AGkolJFJiMxw6Wg9ldj9_fCxvHUUKKTUqbzxtRhZAXRJ1MwRxK18ad0tSWxRMZxMWPXZaC25YOEsUAG8BKw" target="_blank" rel="noopener nofollow sponsored">领券</a>
-        <a class="ad-btn" href="https://union-click.jd.com/jdc?e=618%7Cpc%7C&p=JF8BATQJK1olXwMAV1hZDU4WC18IGlgWXA8DVFpYCkMVBV9MRANLAjZbERscSkAJHTdNTwcKBlMdBgABFksWAGwJEloVWQMAXFxbFxJSXzI4XFhyWV0YNi04VTFJXjt0TF9hNVN6ElJROEonA24JG10UXAcKVW5tCEwnQgEIHlwdXQYKXW5cOEsRCm0OGloTXwQGXVptD0seMzVBUxlUDVRWZG5tC3sQA2YcHSlUDxIEJm5tCHsUM28JG1oQWg4LV1tUFEsXB24KGUcVWw8AUl9cDkkWA2kMK1kUXAILZG6DhftgAW9rcilFXQBRHQE9cA5N3eK4CidxWQYDUU9tcR93ZC1vSR9nKFZ1MyknfDcVBi1_fCxvGH9KEhc9ZklkfG5PZFtQBX1GKBZeaDtPXF8NK1sWXgYLZA" target="_blank" rel="noopener nofollow sponsored">去看看</a>
+        <span class="ad-body">🍉 懒得敲了？直接</span>
+        <a class="ad-btn coupon" href="https://union-click.jd.com/jdc?e=618%7Cpc%7C&p=JF8BAdMJK1olXwMAV1hZDU4WC18IGlgWXA8DVFpYCkMVBV9MRANLAjZbERscSkAJHTRQRA1CCVkdDwtCWhVLHTdNTwcKBENeCVAfUg8bejtofBlyD0JwIQ4qbzxtQywAZjBiOnF4EScVTgJ3bW17ZFpSIgZHDCUZdAMUYx9QRExVUXJ7JD0qUSxLdwZ8fS9mNll2CwwFbC93RRhARit3FHpENxUtWyxNYyZ_U1tjPwdiFCk_VTJ1Sh9ObCluLmVLJwkpVzt0egx_RSxKNWN2HD41Wigfew98SQF2NFBgLz0-Sj9uezx8Qg5RKVl6DG5bVjFgSi92BT5jR28BCx4lSAljdg94F1clXDYCVV9dDkoWAmcJK2sVWjZDOl5YD0MXA2cBK1olXQALVlhcCU0VAWgKEmsSXQ8yDhcVSgpHUTs4K2sWbQECXUpbegpFF2l6K2sVXjYBZF5cCEoSBGcBGF4cQQYCUF9fClcXBWYKHVoUWwQDVFhZOEkWAmsBK2vL0LZmJiUaej5NdTgJfTpVIGVGitPtGTdgAW0AGkolJFJiMxw6Wg9ldj9_fCxvHUUKKTUqbzxtRhZAXRJ1MwRxK18ad0tSWxRMZxMWPXZaC25YOEsUAG8BKw" target="_blank" rel="noopener nofollow sponsored">领个券 🎫</a>
+        <a class="ad-btn" href="https://union-click.jd.com/jdc?e=618%7Cpc%7C&p=JF8BATQJK1olXwMAV1hZDU4WC18IGlgWXA8DVFpYCkMVBV9MRANLAjZbERscSkAJHTdNTwcKBlMdBgABFksWAGwJEloVWQMAXFxbFxJSXzI4XFhyWV0YNi04VTFJXjt0TF9hNVN6ElJROEonA24JG10UXAcKVW5tCEwnQgEIHlwdXQYKXW5cOEsRCm0OGloTXwQGXVptD0seMzVBUxlUDVRWZG5tC3sQA2YcHSlUDxIEJm5tCHsUM28JG1oQWg4LV1tUFEsXB24KGUcVWw8AUl9cDkkWA2kMK1kUXAILZG6DhftgAW9rcilFXQBRHQE9cA5N3eK4CidxWQYDUU9tcR93ZC1vSR9nKFZ1MyknfDcVBi1_fCxvGH9KEhc9ZklkfG5PZFtQBX1GKBZeaDtPXF8NK1sWXgYLZA" target="_blank" rel="noopener nofollow sponsored">买个瓜 🛒</a>
       </div>
     </div>
   </div>
 
-  <div class="ver">🍉 敲瓜听声 · v1.3 · <span id="verHash">5e3955b</span> · 2026-07-11</div>
+  <div class="ver">🍉 AI 选瓜 · v1.3 · <span id="verHash">dev</span> · 2026-07-11</div>
 
 <script>
 // ---------- 迭代 Cooley-Tukey FFT (原地, 输入长度须为 2 的幂) ----------
