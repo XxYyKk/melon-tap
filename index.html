@@ -6,59 +6,69 @@
 <title>敲瓜听声 · 频率分析</title>
 <style>
   :root {
-    --bg: #0f1420;
-    --card: #1a2233;
-    --accent: #4ade80;
-    --accent2: #38bdf8;
-    --warn: #fbbf24;
-    --text: #e2e8f0;
-    --muted: #7c8aa5;
+    --accent: #35c759;      /* 西瓜绿 */
+    --accent-d: #1f9d43;    /* 深绿(文字/主频) */
+    --melon: #ff5c7a;       /* 西瓜红 */
+    --warn: #ff9500;        /* 橙 */
+    --text: #22352a;        /* 深墨绿文字 */
+    --muted: #7d9585;       /* 灰绿 */
+    --line: #e9f0ea;        /* 浅分隔线 */
+    --field: #f4f9f4;       /* 浅输入底 */
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body {
-    margin: 0; background: var(--bg); color: var(--text);
+    margin: 0; color: var(--text);
+    background: linear-gradient(180deg, #fef7ec 0%, #eafaef 55%, #e2f7ea 100%);
+    background-attachment: fixed; min-height: 100vh;
     font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
     padding: 16px; max-width: 560px; margin: 0 auto;
     -webkit-font-smoothing: antialiased;
   }
-  h1 { font-size: 20px; margin: 8px 0 4px; }
+  h1 { font-size: 21px; margin: 8px 0 4px; }
   .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
-  .card { background: var(--card); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  .card { background: #fff; border-radius: 16px; padding: 16px; margin-bottom: 14px;
+          box-shadow: 0 6px 20px rgba(53,199,89,0.08); }
   #recBtn {
-    width: 100%; padding: 22px; font-size: 20px; font-weight: 600;
-    border: none; border-radius: 14px; color: #06231a; background: var(--accent);
+    width: 100%; padding: 22px; font-size: 20px; font-weight: 700;
+    border: none; border-radius: 14px; color: #fff;
+    background: linear-gradient(135deg, #3fd968, #23b04a);
+    box-shadow: 0 6px 16px rgba(45,180,74,0.3);
     transition: .15s; touch-action: manipulation;
   }
-  #recBtn.recording { background: #ef4444; color: #fff; animation: pulse 1s infinite; }
+  #recBtn.recording { background: linear-gradient(135deg,#ff7089,#ff4d6d); box-shadow: 0 6px 16px rgba(255,77,109,.3); animation: pulse 1s infinite; }
   #recBtn:disabled { opacity: .5; }
-  @keyframes pulse { 50% { opacity: .7; } }
-  .meter { height: 8px; background: #0b0f18; border-radius: 4px; margin-top: 12px; overflow: hidden; }
-  .meter > div { height: 100%; width: 0%; background: var(--accent2); transition: width .05s; }
-  canvas { width: 100%; height: 180px; display: block; background: #0b0f18; border-radius: 10px; }
-  .stat { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 0; border-bottom: 1px solid #263149; }
+  @keyframes pulse { 50% { opacity: .72; } }
+  .meter { height: 8px; background: var(--field); border-radius: 4px; margin-top: 12px; overflow: hidden; }
+  .meter > div { height: 100%; width: 0%; background: var(--melon); transition: width .05s; }
+  .cap { font-size: 12px; color: var(--muted); margin: 2px 0 6px; }
+  .cap b { color: var(--accent-d); font-weight: 600; }
+  canvas { width: 100%; height: 170px; display: block; background: #fbfefb;
+           border: 1px solid var(--line); border-radius: 10px; }
+  #waveform { height: 110px; margin-bottom: 12px; }
+  .stat { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--line); }
   .stat:last-child { border: none; }
   .stat .k { color: var(--muted); font-size: 13px; }
-  .stat .v { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .stat .v { font-size: 18px; font-weight: 700; color: var(--accent-d); font-variant-numeric: tabular-nums; }
   .stat .v small { color: var(--muted); font-weight: 400; font-size: 12px; }
   .row { display: flex; gap: 8px; margin-top: 12px; }
   .row button {
-    flex: 1; padding: 12px; border: 1px solid #2f3d59; background: #131b2b; color: var(--text);
+    flex: 1; padding: 12px; border: 1px solid var(--line); background: var(--field); color: var(--text);
     border-radius: 10px; font-size: 15px; touch-action: manipulation;
   }
-  .row button.ripe { border-color: var(--accent); color: var(--accent); }
-  .row button.unripe { border-color: var(--warn); color: var(--warn); }
+  .row button.ripe { border-color: var(--accent); color: var(--accent-d); background: #ecfbf0; }
+  .row button.unripe { border-color: var(--warn); color: #c56a00; background: #fff4e3; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid #263149; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
   th { color: var(--muted); font-weight: 500; }
   .tag { padding: 1px 7px; border-radius: 6px; font-size: 12px; }
-  .tag.ripe { background: #14432a; color: var(--accent); }
-  .tag.unripe { background: #43350f; color: var(--warn); }
-  .tag.unknown { background: #263149; color: var(--muted); }
+  .tag.ripe { background: #e3f7e9; color: var(--accent-d); }
+  .tag.unripe { background: #fff0da; color: #c56a00; }
+  .tag.unknown { background: #eef2ee; color: var(--muted); }
   .hint { color: var(--muted); font-size: 12px; line-height: 1.6; margin-top: 10px; }
-  .linkbtn { background: none; border: none; color: var(--accent2); font-size: 13px; padding: 0; }
+  .linkbtn { background: none; border: none; color: var(--melon); font-size: 13px; padding: 0; }
   .settings { display: flex; gap: 12px; align-items: center; font-size: 13px; color: var(--muted); margin-top: 12px; flex-wrap: wrap; }
-  .settings input { width: 64px; background: #0b0f18; border: 1px solid #2f3d59; color: var(--text); border-radius: 6px; padding: 4px 6px; font-size: 13px; }
-  #status { font-size: 13px; color: var(--warn); min-height: 18px; margin-top: 8px; }
+  .settings input { width: 64px; background: var(--field); border: 1px solid var(--line); color: var(--text); border-radius: 6px; padding: 4px 6px; font-size: 13px; }
+  #status { font-size: 13px; color: var(--warn); min-height: 18px; margin-top: 8px; font-weight: 500; }
 </style>
 </head>
 <body>
@@ -78,6 +88,9 @@
   </div>
 
   <div class="card">
+    <div class="cap">📈 波形图 · 横轴 = <b>时间</b>，绿色高亮 = 实际分析的窗口</div>
+    <canvas id="waveform"></canvas>
+    <div class="cap">📊 频谱图 · 横轴 = <b>频率</b>，绿色竖线 = 主频</div>
     <canvas id="spectrum"></canvas>
     <div class="stat"><span class="k">主频 (Dominant)</span><span class="v" id="fDom">— <small>Hz</small></span></div>
     <div class="stat"><span class="k">频谱质心 (Centroid)</span><span class="v" id="fCen">— <small>Hz</small></span></div>
@@ -256,7 +269,57 @@ function analyze(pcm) {
   ['saveUnripe', 'saveUnknown', 'saveRipe'].forEach(id => $(id).disabled = false);
   showVerdict(dominant);
 
+  drawWaveform(pcm, start, winLen, peakIdx);
   drawSpectrum(mag, binHz, minHz, maxHz, dominant);
+}
+
+// ---------- 波形可视化(时域, 横轴=时间) ----------
+function drawWaveform(pcm, winStart, winLen, peakIdx) {
+  const cv = $('waveform'), dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, W, H);
+  const mid = H / 2, totalSec = pcm.length / sampleRate;
+
+  // 分析窗口高亮带
+  const wx1 = winStart / pcm.length * W;
+  const wx2 = (winStart + winLen) / pcm.length * W;
+  ctx.fillStyle = 'rgba(53,199,89,0.16)';
+  ctx.fillRect(wx1, 0, wx2 - wx1, H);
+  ctx.fillStyle = 'rgba(31,157,67,0.7)'; ctx.font = '10px sans-serif';
+  ctx.fillText('分析窗口 ' + (winLen / sampleRate * 1000).toFixed(0) + 'ms', wx1 + 3, 12);
+
+  // 零线
+  ctx.strokeStyle = '#e2ece4'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, mid); ctx.lineTo(W, mid); ctx.stroke();
+
+  // 波形(按像素列取 min/max 画包络, 抗抽稀失真)
+  const step = pcm.length / W;
+  ctx.strokeStyle = '#ff5c7a'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = 0; x < W; x++) {
+    let lo = 1, hi = -1;
+    const s = Math.floor(x * step), e = Math.min(pcm.length, Math.floor((x + 1) * step));
+    for (let i = s; i < e; i++) { if (pcm[i] < lo) lo = pcm[i]; if (pcm[i] > hi) hi = pcm[i]; }
+    ctx.moveTo(x, mid - hi * mid * 0.92);
+    ctx.lineTo(x, mid - lo * mid * 0.92);
+  }
+  ctx.stroke();
+
+  // 敲击时刻竖线
+  const px = peakIdx / pcm.length * W;
+  ctx.strokeStyle = '#1f9d43'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, H); ctx.stroke();
+
+  // 时间刻度(秒)
+  ctx.fillStyle = '#7d9585'; ctx.font = '10px sans-serif';
+  const nTicks = 4;
+  for (let k = 0; k <= nTicks; k++) {
+    const x = k / nTicks * W;
+    const t = (k / nTicks * totalSec);
+    ctx.fillText(t.toFixed(2) + 's', Math.min(x + 2, W - 26), H - 3);
+  }
 }
 
 // 给一句人话判读: 优先用自校准分界线, 否则用学术参考 130-160Hz
@@ -297,9 +360,9 @@ function drawSpectrum(mag, binHz, minHz, maxHz, dominant) {
   if (RIPE_HI > minHz && RIPE_LO < maxHz) {
     const bx1 = (Math.max(RIPE_LO, minHz) / binHz - lo) / (hi - lo) * W;
     const bx2 = (Math.min(RIPE_HI, maxHz) / binHz - lo) / (hi - lo) * W;
-    ctx.fillStyle = 'rgba(74,222,128,0.12)';
+    ctx.fillStyle = 'rgba(53,199,89,0.14)';
     ctx.fillRect(bx1, 0, bx2 - bx1, H);
-    ctx.fillStyle = 'rgba(74,222,128,0.5)'; ctx.font = '10px sans-serif';
+    ctx.fillStyle = 'rgba(31,157,67,0.85)'; ctx.font = '10px sans-serif';
     ctx.fillText('熟瓜参考区', bx1 + 2, H - 16);
   }
 
@@ -310,23 +373,23 @@ function drawSpectrum(mag, binHz, minHz, maxHz, dominant) {
     const y = H - (mag[i] / max) * (H - 10);
     i === lo ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
   }
-  ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.strokeStyle = '#1f9d43'; ctx.lineWidth = 1.5; ctx.stroke();
   ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
-  ctx.fillStyle = 'rgba(56,189,248,0.12)'; ctx.fill();
+  ctx.fillStyle = 'rgba(53,199,89,0.14)'; ctx.fill();
 
   // 主频竖线
   const dx = (dominant / binHz - lo) / (hi - lo) * W;
   ctx.beginPath(); ctx.moveTo(dx, 0); ctx.lineTo(dx, H);
-  ctx.strokeStyle = '#4ade80'; ctx.lineWidth = 1; ctx.stroke();
-  ctx.fillStyle = '#4ade80'; ctx.font = '12px sans-serif';
+  ctx.strokeStyle = '#ff5c7a'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = '#ff5c7a'; ctx.font = 'bold 12px sans-serif';
   ctx.fillText(dominant.toFixed(0) + 'Hz', Math.min(dx + 4, W - 40), 14);
 
   // 频率刻度
-  ctx.fillStyle = '#7c8aa5'; ctx.font = '10px sans-serif';
+  ctx.fillStyle = '#7d9585'; ctx.font = '10px sans-serif';
   for (let f = 0; f <= maxHz; f += (maxHz > 800 ? 400 : 200)) {
     if (f < minHz) continue;
     const x = (f / binHz - lo) / (hi - lo) * W;
-    ctx.fillText(f + '', x + 2, H - 3);
+    ctx.fillText(f + 'Hz', x + 2, H - 3);
   }
 }
 
