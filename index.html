@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>敲瓜听声 · 频率分析</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --card: #1a2233;
+    --accent: #4ade80;
+    --accent2: #38bdf8;
+    --warn: #fbbf24;
+    --text: #e2e8f0;
+    --muted: #7c8aa5;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    padding: 16px; max-width: 560px; margin: 0 auto;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1 { font-size: 20px; margin: 8px 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  .card { background: var(--card); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  #recBtn {
+    width: 100%; padding: 22px; font-size: 20px; font-weight: 600;
+    border: none; border-radius: 14px; color: #06231a; background: var(--accent);
+    transition: .15s; touch-action: manipulation;
+  }
+  #recBtn.recording { background: #ef4444; color: #fff; animation: pulse 1s infinite; }
+  #recBtn:disabled { opacity: .5; }
+  @keyframes pulse { 50% { opacity: .7; } }
+  .meter { height: 8px; background: #0b0f18; border-radius: 4px; margin-top: 12px; overflow: hidden; }
+  .meter > div { height: 100%; width: 0%; background: var(--accent2); transition: width .05s; }
+  canvas { width: 100%; height: 180px; display: block; background: #0b0f18; border-radius: 10px; }
+  .stat { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 0; border-bottom: 1px solid #263149; }
+  .stat:last-child { border: none; }
+  .stat .k { color: var(--muted); font-size: 13px; }
+  .stat .v { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .stat .v small { color: var(--muted); font-weight: 400; font-size: 12px; }
+  .row { display: flex; gap: 8px; margin-top: 12px; }
+  .row button {
+    flex: 1; padding: 12px; border: 1px solid #2f3d59; background: #131b2b; color: var(--text);
+    border-radius: 10px; font-size: 15px; touch-action: manipulation;
+  }
+  .row button.ripe { border-color: var(--accent); color: var(--accent); }
+  .row button.unripe { border-color: var(--warn); color: var(--warn); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid #263149; font-variant-numeric: tabular-nums; }
+  th { color: var(--muted); font-weight: 500; }
+  .tag { padding: 1px 7px; border-radius: 6px; font-size: 12px; }
+  .tag.ripe { background: #14432a; color: var(--accent); }
+  .tag.unripe { background: #43350f; color: var(--warn); }
+  .tag.unknown { background: #263149; color: var(--muted); }
+  .hint { color: var(--muted); font-size: 12px; line-height: 1.6; margin-top: 10px; }
+  .linkbtn { background: none; border: none; color: var(--accent2); font-size: 13px; padding: 0; }
+  .settings { display: flex; gap: 12px; align-items: center; font-size: 13px; color: var(--muted); margin-top: 12px; flex-wrap: wrap; }
+  .settings input { width: 64px; background: #0b0f18; border: 1px solid #2f3d59; color: var(--text); border-radius: 6px; padding: 4px 6px; font-size: 13px; }
+  #status { font-size: 13px; color: var(--warn); min-height: 18px; margin-top: 8px; }
+</style>
+</head>
+<body>
+  <h1>🍉 敲瓜听声</h1>
+  <div class="sub">点按钮录音 → 敲击物体 → 停止后自动分析主频</div>
+
+  <div class="card">
+    <button id="recBtn">🎤 开始录音</button>
+    <div class="meter"><div id="level"></div></div>
+    <div id="status"></div>
+    <div class="settings">
+      分析频段
+      <input id="minHz" type="number" value="30"> ~
+      <input id="maxHz" type="number" value="1200"> Hz
+      <span style="margin-left:auto">窗口 <input id="winMs" type="number" value="120"> ms</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <canvas id="spectrum"></canvas>
+    <div class="stat"><span class="k">主频 (Dominant)</span><span class="v" id="fDom">— <small>Hz</small></span></div>
+    <div class="stat"><span class="k">频谱质心 (Centroid)</span><span class="v" id="fCen">— <small>Hz</small></span></div>
+    <div class="stat"><span class="k">敲击时刻</span><span class="v" id="fPeak">— <small>s</small></span></div>
+    <div class="row">
+      <button id="saveUnripe" class="unripe" disabled>标记生瓜</button>
+      <button id="saveUnknown" disabled>标记未知</button>
+      <button id="saveRipe" class="ripe" disabled>标记熟瓜</button>
+    </div>
+    <div class="hint">敲熟瓜声音低沉 → 主频偏低；生瓜清脆 → 主频偏高。多敲同一个瓜几次取平均更准；敲击点、力度尽量一致。</div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <strong style="font-size:15px">历史对比</strong>
+      <button class="linkbtn" id="clearHist">清空</button>
+    </div>
+    <table id="histTable">
+      <thead><tr><th>标记</th><th>主频</th><th>质心</th><th>时间</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="hint" id="histSummary"></div>
+  </div>
+
+<script>
+// ---------- 迭代 Cooley-Tukey FFT (原地, 输入长度须为 2 的幂) ----------
+function fft(re, im) {
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) { [re[i], re[j]] = [re[j], re[i]]; [im[i], im[j]] = [im[j], im[i]]; }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = -2 * Math.PI / len;
+    const wr = Math.cos(ang), wi = Math.sin(ang);
+    for (let i = 0; i < n; i += len) {
+      let cr = 1, ci = 0;
+      const half = len >> 1;
+      for (let k = 0; k < half; k++) {
+        const a = i + k, b = i + k + half;
+        const vr = re[b] * cr - im[b] * ci;
+        const vi = re[b] * ci + im[b] * cr;
+        re[b] = re[a] - vr; im[b] = im[a] - vi;
+        re[a] = re[a] + vr; im[a] = im[a] + vi;
+        const ncr = cr * wr - ci * wi;
+        ci = cr * wi + ci * wr; cr = ncr;
+      }
+    }
+  }
+}
+const nextPow2 = n => { let p = 1; while (p < n) p <<= 1; return p; };
+
+// ---------- 录音 ----------
+let audioCtx, stream, processor, sourceNode;
+let recording = false;
+let chunks = [];        // Float32Array 片段
+let sampleRate = 44100;
+let lastResult = null;
+
+const $ = id => document.getElementById(id);
+const recBtn = $('recBtn'), levelEl = $('level'), statusEl = $('status');
+
+recBtn.onclick = () => recording ? stopRec() : startRec();
+
+async function startRec() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+    });
+  } catch (e) {
+    statusEl.textContent = '无法访问麦克风：' + e.message + '（需 HTTPS 且授权）';
+    return;
+  }
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') await audioCtx.resume();
+  sampleRate = audioCtx.sampleRate;
+  sourceNode = audioCtx.createMediaStreamSource(stream);
+
+  const bufSize = 4096;
+  processor = audioCtx.createScriptProcessor(bufSize, 1, 1);
+  chunks = [];
+  processor.onaudioprocess = e => {
+    const data = e.inputBuffer.getChannelData(0);
+    chunks.push(new Float32Array(data));
+    let peak = 0;
+    for (let i = 0; i < data.length; i++) { const a = Math.abs(data[i]); if (a > peak) peak = a; }
+    levelEl.style.width = Math.min(100, peak * 140) + '%';
+  };
+  // 通过 0 增益连到输出, 保证 processor 运行又不产生回放啸叫
+  const mute = audioCtx.createGain(); mute.gain.value = 0;
+  sourceNode.connect(processor); processor.connect(mute); mute.connect(audioCtx.destination);
+
+  recording = true;
+  recBtn.textContent = '⏹ 停止并分析';
+  recBtn.classList.add('recording');
+  statusEl.textContent = '录音中… 请敲击物体';
+}
+
+function stopRec() {
+  recording = false;
+  recBtn.textContent = '🎤 开始录音';
+  recBtn.classList.remove('recording');
+  levelEl.style.width = '0%';
+  try {
+    processor.disconnect(); sourceNode.disconnect();
+    stream.getTracks().forEach(t => t.stop());
+  } catch (e) {}
+  // 拼接 PCM
+  let total = chunks.reduce((s, c) => s + c.length, 0);
+  const pcm = new Float32Array(total);
+  let off = 0;
+  for (const c of chunks) { pcm.set(c, off); off += c.length; }
+  audioCtx.close();
+  if (total < sampleRate * 0.05) { statusEl.textContent = '录音太短，重试'; return; }
+  analyze(pcm);
+}
+
+// ---------- 分析：定位敲击峰 → 加窗 → FFT ----------
+function analyze(pcm) {
+  const minHz = +$('minHz').value, maxHz = +$('maxHz').value;
+  const winMs = +$('winMs').value;
+
+  // 1. 找能量峰（最响的一下敲击）
+  let peakIdx = 0, peakVal = 0;
+  for (let i = 0; i < pcm.length; i++) { const a = Math.abs(pcm[i]); if (a > peakVal) { peakVal = a; peakIdx = i; } }
+
+  // 2. 从峰值稍前一点开始取窗（含起振）
+  const winLen = Math.min(Math.floor(sampleRate * winMs / 1000), pcm.length);
+  let start = Math.max(0, peakIdx - Math.floor(winLen * 0.1));
+  if (start + winLen > pcm.length) start = pcm.length - winLen;
+
+  // 3. 加 Hann 窗 + 去直流
+  const seg = new Float32Array(winLen);
+  let mean = 0;
+  for (let i = 0; i < winLen; i++) mean += pcm[start + i];
+  mean /= winLen;
+  for (let i = 0; i < winLen; i++) {
+    const w = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (winLen - 1));
+    seg[i] = (pcm[start + i] - mean) * w;
+  }
+
+  // 4. 补零到 2 的幂后 FFT（补更长 → 频率插值更细）
+  const N = nextPow2(winLen) * 2;
+  const re = new Float32Array(N), im = new Float32Array(N);
+  re.set(seg);
+  fft(re, im);
+
+  // 5. 幅度谱（只看正频率）
+  const half = N >> 1;
+  const mag = new Float32Array(half);
+  for (let i = 0; i < half; i++) mag[i] = Math.hypot(re[i], im[i]);
+  const binHz = sampleRate / N;
+
+  // 6. 在分析频段内找主频 + 抛物线插值
+  const lo = Math.max(1, Math.floor(minHz / binHz));
+  const hi = Math.min(half - 2, Math.ceil(maxHz / binHz));
+  let mIdx = lo, mMax = 0;
+  for (let i = lo; i <= hi; i++) if (mag[i] > mMax) { mMax = mag[i]; mIdx = i; }
+  const a = mag[mIdx - 1], b = mag[mIdx], c = mag[mIdx + 1];
+  const denom = (a - 2 * b + c);
+  const delta = denom !== 0 ? 0.5 * (a - c) / denom : 0;
+  const dominant = (mIdx + delta) * binHz;
+
+  // 7. 频谱质心（频段内能量加权平均频率）
+  let sw = 0, swf = 0;
+  for (let i = lo; i <= hi; i++) { sw += mag[i]; swf += mag[i] * i * binHz; }
+  const centroid = sw > 0 ? swf / sw : 0;
+
+  lastResult = { dominant, centroid, peakSec: peakIdx / sampleRate };
+  $('fDom').innerHTML = dominant.toFixed(1) + ' <small>Hz</small>';
+  $('fCen').innerHTML = centroid.toFixed(1) + ' <small>Hz</small>';
+  $('fPeak').innerHTML = (peakIdx / sampleRate).toFixed(3) + ' <small>s</small>';
+  statusEl.textContent = '';
+  ['saveUnripe', 'saveUnknown', 'saveRipe'].forEach(id => $(id).disabled = false);
+  showVerdict(dominant);
+
+  drawSpectrum(mag, binHz, minHz, maxHz, dominant);
+}
+
+// 给一句人话判读: 优先用自校准分界线, 否则用学术参考 130-160Hz
+function showVerdict(dom) {
+  const arr = loadHist();
+  const avg = t => { const g = arr.filter(r => r.tag === t); return g.length ? g.reduce((s, r) => s + r.dom, 0) / g.length : null; };
+  const ar = avg('ripe'), au = avg('unripe');
+  let txt, color;
+  if (ar && au) {                       // 有自校准样本 → 用你自己的分界
+    const mid = (ar + au) / 2;
+    if (dom <= mid) { txt = `偏熟(低于你的分界 ${mid.toFixed(0)}Hz)`; color = 'var(--accent)'; }
+    else { txt = `偏生(高于你的分界 ${mid.toFixed(0)}Hz)`; color = 'var(--warn)'; }
+    txt = '📊 按你的样本：' + txt;
+  } else {                              // 无样本 → 用学术参考带
+    if (dom < 130) { txt = '可能过熟(<130Hz)'; color = 'var(--warn)'; }
+    else if (dom <= 160) { txt = '落在熟瓜参考区(130-160Hz)'; color = 'var(--accent)'; }
+    else { txt = '可能偏生(>160Hz)'; color = 'var(--warn)'; }
+    txt = '📖 按学术参考：' + txt + '　(建议标记几个已知瓜自校准)';
+  }
+  statusEl.style.color = color;
+  statusEl.textContent = txt;
+}
+
+// ---------- 频谱可视化 ----------
+function drawSpectrum(mag, binHz, minHz, maxHz, dominant) {
+  const cv = $('spectrum'), dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const ctx = cv.getContext('2d'); ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, W, H);
+
+  const lo = Math.floor(minHz / binHz), hi = Math.ceil(maxHz / binHz);
+  let max = 1e-9;
+  for (let i = lo; i <= hi; i++) if (mag[i] > max) max = mag[i];
+
+  // 熟瓜参考带 130-160Hz(学术共识, 仅作起点参考, 以自校准为准)
+  const RIPE_LO = 130, RIPE_HI = 160;
+  if (RIPE_HI > minHz && RIPE_LO < maxHz) {
+    const bx1 = (Math.max(RIPE_LO, minHz) / binHz - lo) / (hi - lo) * W;
+    const bx2 = (Math.min(RIPE_HI, maxHz) / binHz - lo) / (hi - lo) * W;
+    ctx.fillStyle = 'rgba(74,222,128,0.12)';
+    ctx.fillRect(bx1, 0, bx2 - bx1, H);
+    ctx.fillStyle = 'rgba(74,222,128,0.5)'; ctx.font = '10px sans-serif';
+    ctx.fillText('熟瓜参考区', bx1 + 2, H - 16);
+  }
+
+  // 频谱曲线
+  ctx.beginPath();
+  for (let i = lo; i <= hi; i++) {
+    const x = (i - lo) / (hi - lo) * W;
+    const y = H - (mag[i] / max) * (H - 10);
+    i === lo ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
+  ctx.fillStyle = 'rgba(56,189,248,0.12)'; ctx.fill();
+
+  // 主频竖线
+  const dx = (dominant / binHz - lo) / (hi - lo) * W;
+  ctx.beginPath(); ctx.moveTo(dx, 0); ctx.lineTo(dx, H);
+  ctx.strokeStyle = '#4ade80'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.fillStyle = '#4ade80'; ctx.font = '12px sans-serif';
+  ctx.fillText(dominant.toFixed(0) + 'Hz', Math.min(dx + 4, W - 40), 14);
+
+  // 频率刻度
+  ctx.fillStyle = '#7c8aa5'; ctx.font = '10px sans-serif';
+  for (let f = 0; f <= maxHz; f += (maxHz > 800 ? 400 : 200)) {
+    if (f < minHz) continue;
+    const x = (f / binHz - lo) / (hi - lo) * W;
+    ctx.fillText(f + '', x + 2, H - 3);
+  }
+}
+
+// ---------- 历史样本 (localStorage) ----------
+const KEY = 'melon_samples';
+const loadHist = () => JSON.parse(localStorage.getItem(KEY) || '[]');
+const saveHist = arr => localStorage.setItem(KEY, JSON.stringify(arr));
+
+function addSample(tag) {
+  if (!lastResult) return;
+  const arr = loadHist();
+  arr.unshift({ tag, dom: +lastResult.dominant.toFixed(1), cen: +lastResult.centroid.toFixed(1), t: Date.now() });
+  saveHist(arr.slice(0, 50));
+  renderHist();
+}
+$('saveRipe').onclick = () => addSample('ripe');
+$('saveUnripe').onclick = () => addSample('unripe');
+$('saveUnknown').onclick = () => addSample('unknown');
+$('clearHist').onclick = () => { if (confirm('清空所有历史样本？')) { saveHist([]); renderHist(); } };
+
+const tagLabel = { ripe: '熟瓜', unripe: '生瓜', unknown: '未知' };
+function renderHist() {
+  const arr = loadHist();
+  const tb = $('histTable').querySelector('tbody');
+  tb.innerHTML = arr.map(r => {
+    const d = new Date(r.t);
+    const hm = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    return `<tr><td><span class="tag ${r.tag}">${tagLabel[r.tag]}</span></td>
+      <td>${r.dom} Hz</td><td>${r.cen} Hz</td><td>${hm}</td></tr>`;
+  }).join('');
+
+  // 简单统计：生/熟主频均值
+  const avg = t => { const g = arr.filter(r => r.tag === t); return g.length ? (g.reduce((s, r) => s + r.dom, 0) / g.length) : null; };
+  const ar = avg('ripe'), au = avg('unripe');
+  let s = '';
+  if (ar) s += `熟瓜主频均值 ${ar.toFixed(0)}Hz　`;
+  if (au) s += `生瓜主频均值 ${au.toFixed(0)}Hz`;
+  if (ar && au) s += `　→ 分界约 ${((ar + au) / 2).toFixed(0)}Hz`;
+  $('histSummary').textContent = s;
+}
+renderHist();
+</script>
+</body>
+</html>
