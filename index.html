@@ -78,6 +78,13 @@
   #eggResult { margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: #fff0f3;
                border: 1px solid #ffd5de; color: #c53052; font-size: 14px; line-height: 1.6; display: none; }
   #eggResult b { color: #a01f42; }
+  #advice { margin: 12px 0 4px; padding: 14px 16px; border-radius: 12px; display: none;
+            font-size: 15px; line-height: 1.7; }
+  #advice.good { background: #ecfbf0; border: 1px solid #b6ecc4; color: #1a7a38; }
+  #advice.unripe { background: #fff4e3; border: 1px solid #ffe0b0; color: #b26a00; }
+  #advice.old { background: #ffeef1; border: 1px solid #ffd0d9; color: #b83052; }
+  #advice .big { font-size: 17px; font-weight: 700; display: block; margin-bottom: 4px; }
+  #advice .why { font-size: 13px; opacity: .85; font-weight: 400; }
 </style>
 </head>
 <body>
@@ -101,8 +108,11 @@
     <canvas id="waveform"></canvas>
     <div class="cap">📊 频谱图 · 横轴 = <b>频率</b>，绿色竖线 = 主频</div>
     <canvas id="spectrum"></canvas>
+    <div id="advice"></div>
     <div class="stat"><span class="k">主频 (Dominant)</span><span class="v" id="fDom">— <small>Hz</small></span></div>
+    <div class="stat"><span class="k">余韵/衰减 (Decay)</span><span class="v" id="fDecay">— <small>ms</small></span></div>
     <div class="stat"><span class="k">频谱质心 (Centroid)</span><span class="v" id="fCen">— <small>Hz</small></span></div>
+    <div class="stat"><span class="k">敲击次数</span><span class="v" id="fHits">— <small>次</small></span></div>
     <div class="stat"><span class="k">敲击时刻</span><span class="v" id="fPeak">— <small>s</small></span></div>
     <div class="row">
       <button id="saveUnripe" class="unripe" disabled>标记生瓜</button>
@@ -321,19 +331,45 @@ function analyze(pcm) {
   for (let i = lo; i <= hi; i++) { sw += mag[i]; swf += mag[i] * i * binHz; }
   const centroid = sw > 0 ? swf / sw : 0;
 
-  lastResult = { dominant, centroid, peakSec: peakIdx / sampleRate };
+  // 8. 余韵/衰减时间：从峰值往后, 用 5ms 滑动 RMS 包络, 量降到峰值 1/e 用了多少 ms
+  //    物理意义: 熟瓜阻尼大衰减快(余韵短), 生瓜致密衰减慢(余韵长)
+  const rwin = Math.max(1, Math.floor(sampleRate * 0.005));
+  const rmsAt = ci => { let s = 0, n = 0; for (let i = ci; i < ci + rwin && i < pcm.length; i++) { s += pcm[i] * pcm[i]; n++; } return n ? Math.sqrt(s / n) : 0; };
+  const peakRms = rmsAt(peakIdx), thr = peakRms / Math.E;
+  let decayMs = (pcm.length - peakIdx) / sampleRate * 1000;   // 默认: 到录音结束都没降下来
+  for (let ci = peakIdx; ci < pcm.length - rwin; ci += rwin) {
+    if (rmsAt(ci) < thr) { decayMs = (ci - peakIdx) / sampleRate * 1000; break; }
+  }
+
+  // 9. 敲击次数：滑动 RMS 包络上, 越过(全局峰值*0.35)的上升沿且间隔>120ms 记一次
+  let gPeak = 0;
+  for (let ci = 0; ci < pcm.length - rwin; ci += rwin) { const v = rmsAt(ci); if (v > gPeak) gPeak = v; }
+  const hThr = gPeak * 0.35, minGap = sampleRate * 0.12;
+  let hits = 0, lastHit = -1e9, prevV = 0;
+  for (let ci = 0; ci < pcm.length - rwin; ci += rwin) {
+    const v = rmsAt(ci);
+    if (v >= hThr && prevV < hThr && (ci - lastHit) > minGap) { hits++; lastHit = ci; }
+    prevV = v;
+  }
+  if (hits < 1) hits = 1;
+
+  lastResult = { dominant, centroid, decayMs, hits, peakSec: peakIdx / sampleRate };
   $('fDom').innerHTML = dominant.toFixed(1) + ' <small>Hz</small>';
+  $('fDecay').innerHTML = decayMs.toFixed(0) + ' <small>ms</small>';
   $('fCen').innerHTML = centroid.toFixed(1) + ' <small>Hz</small>';
+  $('fHits').innerHTML = hits + ' <small>次</small>';
   $('fPeak').innerHTML = (peakIdx / sampleRate).toFixed(3) + ' <small>s</small>';
   statusEl.textContent = '';
 
   if (headMode) {                 // 🥚 脑袋模式: 不做正经判读, 抖机灵
     headMode = false;
     ['saveUnripe', 'saveGood', 'saveOld'].forEach(id => $(id).disabled = true);
+    $('advice').style.display = 'none';
     showEggVerdict(dominant);
   } else {
     ['saveUnripe', 'saveGood', 'saveOld'].forEach(id => $(id).disabled = false);
     showVerdict(dominant);
+    showAdvice(dominant, decayMs, hits);
     $('eggBtn').hidden = false;    // 正常分析过一次后, 亮出彩蛋
   }
 
@@ -341,14 +377,44 @@ function analyze(pcm) {
   drawSpectrum(mag, binHz, minHz, maxHz, dominant);
 }
 
+// 综合主频 + 余韵, 给一段"人话建议"(能不能买 + 为什么 + 怎么吃)
+function showAdvice(dom, decayMs, hits) {
+  let cat, big, tip;
+  if (dom < 130) {
+    cat = 'old';
+    big = '🍉 偏熟 / 老瓜';
+    tip = '组织偏软、可能起沙或有空腔，甜度通常够但口感偏面。想吃脆的别选，喜欢沙瓤的可以。尽快吃，别久放。';
+  } else if (dom <= 160) {
+    cat = 'good';
+    big = '🍉 好瓜，可以买！';
+    tip = '成熟度恰到好处，多半清甜多汁。放心挑这颗，冰镇一下更好吃。';
+  } else {
+    cat = 'unripe';
+    big = '🍉 偏生 / 还没熟';
+    tip = '组织致密、水分甜度可能不足，口感偏硬。不着急吃的话可以放两天再切。';
+  }
+  // 余韵作为佐证: 短=闷(偏熟) 长=脆(偏生)
+  let cross;
+  if (decayMs < 60) cross = '余韵很短、声音发闷，印证偏熟。';
+  else if (decayMs > 180) cross = '余韵拖得长、声音清脆，印证偏生。';
+  else cross = '余韵适中。';
+  const why = `依据：主频 ${dom.toFixed(0)}Hz（越低越熟）、余韵 ${decayMs.toFixed(0)}ms（越短越熟）。${cross}` +
+    (hits >= 2 ? `　共敲到 ${hits} 下，取最响一下分析。` : '');
+  const box = $('advice');
+  box.className = cat;
+  box.innerHTML = `<span class="big">${big}</span>${tip}<br><span class="why">${why}</span>`;
+  box.style.display = 'block';
+}
+
 // ---------- 🥚 彩蛋: 敲敲自己的脑袋 ----------
 let headMode = false;
 $('eggBtn').onclick = () => {
+  if (recording) return;           // 正在录音时不重复触发
   headMode = true;
   $('eggResult').style.display = 'none';
-  startRec();
+  startRec();                      // startRec 已把主按钮变成"⏹ 停止并分析"
   statusEl.style.color = 'var(--melon)';
-  statusEl.textContent = '🥥 脑袋模式：轻轻敲两下你的天灵盖…（悠着点）';
+  statusEl.textContent = '🥥 脑袋模式：轻敲两下天灵盖，敲完点上方“⏹ 停止并分析”（悠着点）';
 };
 
 function showEggVerdict(dom) {
@@ -543,7 +609,7 @@ const saveHist = arr => localStorage.setItem(KEY, JSON.stringify(arr));
 function addSample(tag) {
   if (!lastResult) return;
   const arr = loadHist();
-  arr.unshift({ tag, dom: +lastResult.dominant.toFixed(1), cen: +lastResult.centroid.toFixed(1), t: Date.now() });
+  arr.unshift({ tag, dom: +lastResult.dominant.toFixed(1), cen: +lastResult.centroid.toFixed(1), decay: +lastResult.decayMs.toFixed(0), hits: lastResult.hits, t: Date.now() });
   saveHist(arr.slice(0, 50));
   renderHist();
 }
